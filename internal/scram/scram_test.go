@@ -2,11 +2,12 @@ package scram_test
 
 import (
 	"crypto/sha1"
+	"strings"
 	"testing"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/mgo.v2/internal/scram"
-	"strings"
+
+	"github.com/3JoB/mgo/internal/scram"
 )
 
 var _ = Suite(&S{})

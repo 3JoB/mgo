@@ -1,8 +1,9 @@
 package txn
 
 import (
-	"gopkg.in/mgo.v2/bson"
 	"sort"
+
+	"github.com/3JoB/mgo/bson"
 )
 
 func tarjanSort(successors map[bson.ObjectId][]bson.ObjectId) [][]bson.ObjectId {
@@ -45,15 +46,17 @@ type tarjanNode struct {
 
 type idList []bson.ObjectId
 
-func (l idList) Len() int           { return len(l) }
-func (l idList) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+func (l idList) Len() int { return len(l) }
+
+func (l idList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
 func (l idList) Less(i, j int) bool { return l[i] < l[j] }
 
 func (data *tarjanData) strongConnect(id bson.ObjectId) *tarjanNode {
 	index := len(data.nodes)
 	data.index[id] = index
 	data.stack = append(data.stack, id)
-	data.nodes = append(data.nodes, tarjanNode{index, true})
+	data.nodes = append(data.nodes, tarjanNode{lowlink: index, stacked: true})
 	node := &data.nodes[index]
 
 	for _, succid := range data.successors[id] {

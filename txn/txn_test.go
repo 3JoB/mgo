@@ -8,10 +8,11 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
-	"gopkg.in/mgo.v2/dbtest"
-	"gopkg.in/mgo.v2/txn"
+
+	"github.com/3JoB/mgo"
+	"github.com/3JoB/mgo/bson"
+	"github.com/3JoB/mgo/dbtest"
+	"github.com/3JoB/mgo/txn"
 )
 
 func TestAll(t *testing.T) {
@@ -29,7 +30,7 @@ type S struct {
 
 var _ = Suite(&S{})
 
-type M map[string]interface{}
+type M map[string]any
 
 func (s *S) SetUpSuite(c *C) {
 	s.server.SetPath(c.MkDir())
@@ -374,8 +375,8 @@ func (s *S) TestAssertNestedOr(c *C) {
 	ops := []txn.Op{{
 		C:      "accounts",
 		Id:     0,
-		Assert: bson.D{{"$or", []bson.D{{{"balance", 100}}, {{"balance", 300}}}}},
-		Update: bson.D{{"$inc", bson.D{{"balance", 100}}}},
+		Assert: bson.D{{Name: "$or", Value: []bson.D{{{Name: "balance", Value: 100}}, {{Name: "balance", Value: 300}}}}},
+		Update: bson.D{{Name: "$inc", Value: bson.D{{Name: "balance", Value: 100}}}},
 	}}
 
 	err = s.runner.Run(ops, "", nil)
@@ -390,7 +391,7 @@ func (s *S) TestAssertNestedOr(c *C) {
 func (s *S) TestVerifyFieldOrdering(c *C) {
 	// Used to have a map in certain operations, which means
 	// the ordering of fields would be messed up.
-	fields := bson.D{{"a", 1}, {"b", 2}, {"c", 3}}
+	fields := bson.D{{Name: "a", Value: 1}, {Name: "b", Value: 2}, {Name: "c", Value: 3}}
 	ops := []txn.Op{{
 		C:      "accounts",
 		Id:     0,
@@ -439,7 +440,7 @@ func (s *S) TestChangeLog(c *C) {
 	err := s.runner.Run(ops, id, nil)
 	c.Assert(err, IsNil)
 
-	type IdList []interface{}
+	type IdList []any
 	type Log struct {
 		Docs   IdList  "d"
 		Revnos []int64 "r"
@@ -448,8 +449,8 @@ func (s *S) TestChangeLog(c *C) {
 	err = chglog.FindId(id).One(&m)
 	c.Assert(err, IsNil)
 
-	c.Assert(m["accounts"], DeepEquals, &Log{IdList{0, 1}, []int64{2, 2}})
-	c.Assert(m["people"], DeepEquals, &Log{IdList{"joe"}, []int64{2}})
+	c.Assert(m["accounts"], DeepEquals, &Log{Docs: IdList{0, 1}, Revnos: []int64{2, 2}})
+	c.Assert(m["people"], DeepEquals, &Log{Docs: IdList{"joe"}, Revnos: []int64{2}})
 	c.Assert(m["debts"], IsNil)
 
 	ops = []txn.Op{{
@@ -469,7 +470,7 @@ func (s *S) TestChangeLog(c *C) {
 	err = chglog.FindId(id).One(&m)
 	c.Assert(err, IsNil)
 
-	c.Assert(m["accounts"], DeepEquals, &Log{IdList{0, 1}, []int64{3, 3}})
+	c.Assert(m["accounts"], DeepEquals, &Log{Docs: IdList{0, 1}, Revnos: []int64{3, 3}})
 	c.Assert(m["people"], IsNil)
 
 	ops = []txn.Op{{
@@ -489,8 +490,8 @@ func (s *S) TestChangeLog(c *C) {
 	err = chglog.FindId(id).One(&m)
 	c.Assert(err, IsNil)
 
-	c.Assert(m["accounts"], DeepEquals, &Log{IdList{0}, []int64{-4}})
-	c.Assert(m["people"], DeepEquals, &Log{IdList{"joe"}, []int64{-3}})
+	c.Assert(m["accounts"], DeepEquals, &Log{Docs: IdList{0}, Revnos: []int64{-4}})
+	c.Assert(m["people"], DeepEquals, &Log{Docs: IdList{"joe"}, Revnos: []int64{-3}})
 }
 
 func (s *S) TestPurgeMissing(c *C) {
@@ -557,10 +558,10 @@ func (s *S) TestPurgeMissing(c *C) {
 	c.Assert(err, IsNil)
 
 	expect := []struct{ Id, Balance int }{
-		{0, -1},
-		{1, 200},
-		{2, 100},
-		{3, 100},
+		{Id: 0, Balance: -1},
+		{Id: 1, Balance: 200},
+		{Id: 2, Balance: 100},
+		{Id: 3, Balance: 100},
 	}
 	var got Account
 	for _, want := range expect {
@@ -692,7 +693,7 @@ func (s *S) TestPurgeMissingPipelineSizeLimit(c *C) {
 	// processing the txn-queue fields of stash documents so insert
 	// the large txn-queue there too to ensure that no longer happens.
 	err = s.sc.Insert(
-		bson.D{{"c", "accounts"}, {"id", 0}},
+		bson.D{{Name: "c", Value: "accounts"}, {Name: "id", Value: 0}},
 		bson.M{"txn-queue": fakeTxnQueue},
 	)
 	c.Assert(err, IsNil)

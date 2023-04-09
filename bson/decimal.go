@@ -58,7 +58,7 @@ func (d Decimal128) String() string {
 		// Bits: 1*sign 2*ignored 14*exponent 111*significand.
 		// Implicit 0b100 prefix in significand.
 		e = int(d.h>>47&(1<<14-1)) - 6176
-		//h = 4<<47 | d.h&(1<<47-1)
+		// h = 4<<47 | d.h&(1<<47-1)
 		// Spec says all of these values are out of range.
 		h, l = 0, 0
 	} else {
@@ -136,9 +136,9 @@ func divmod(h, l uint64, div uint32) (qh, ql uint64, rem uint32) {
 	return (aq<<32 | bq), (cq<<32 | dq), uint32(dr)
 }
 
-var dNaN = Decimal128{0x1F << 58, 0}
-var dPosInf = Decimal128{0x1E << 58, 0}
-var dNegInf = Decimal128{0x3E << 58, 0}
+var dNaN = Decimal128{h: 0x1F << 58, l: 0}
+var dPosInf = Decimal128{h: 0x1E << 58, l: 0}
+var dNegInf = Decimal128{h: 0x3E << 58, l: 0}
 
 func dErr(s string) (Decimal128, error) {
 	return dNaN, fmt.Errorf("cannot parse %q as a decimal128", s)
@@ -291,7 +291,7 @@ func ParseDecimal128(s string) (Decimal128, error) {
 	if neg {
 		h |= 1 << 63
 	}
-	return Decimal128{h, l}, nil
+	return Decimal128{h: h, l: l}, nil
 }
 
 func muladd(h, l uint64, mul uint32, add uint32) (resh, resl uint64, overflow uint32) {

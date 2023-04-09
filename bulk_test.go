@@ -28,7 +28,8 @@ package mgo_test
 
 import (
 	. "gopkg.in/check.v1"
-	"gopkg.in/mgo.v2"
+
+	"github.com/3JoB/mgo"
 )
 
 func (s *S) TestBulkInsert(c *C) {
@@ -48,7 +49,7 @@ func (s *S) TestBulkInsert(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{1}, {2}, {3}})
+	c.Assert(res, DeepEquals, []doc{{N: 1}, {N: 2}, {N: 3}})
 }
 
 func (s *S) TestBulkInsertError(c *C) {
@@ -69,7 +70,7 @@ func (s *S) TestBulkInsertError(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("_id").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{1}, {2}})
+	c.Assert(res, DeepEquals, []doc{{N: 1}, {N: 2}})
 }
 
 func (s *S) TestBulkInsertErrorUnordered(c *C) {
@@ -90,7 +91,7 @@ func (s *S) TestBulkInsertErrorUnordered(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("_id").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{1}, {2}, {3}})
+	c.Assert(res, DeepEquals, []doc{{N: 1}, {N: 2}, {N: 3}})
 }
 
 func (s *S) TestBulkInsertErrorUnorderedSplitBatch(c *C) {
@@ -112,11 +113,11 @@ func (s *S) TestBulkInsertErrorUnorderedSplitBatch(c *C) {
 	type doc struct {
 		Id int `_id`
 	}
-	docs := make([]interface{}, total)
+	docs := make([]any, total)
 	for i := 0; i < total; i++ {
-		docs[i] = doc{i}
+		docs[i] = doc{Id: i}
 	}
-	docs[1] = doc{0}
+	docs[1] = doc{Id: 0}
 	bulk.Insert(docs...)
 	_, err = bulk.Run()
 	c.Assert(err, ErrorMatches, ".*duplicate key.*")
@@ -314,7 +315,7 @@ func (s *S) TestBulkUpdate(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{10}, {20}, {30}})
+	c.Assert(res, DeepEquals, []doc{{N: 10}, {N: 20}, {N: 30}})
 }
 
 func (s *S) TestBulkUpdateError(c *C) {
@@ -341,7 +342,7 @@ func (s *S) TestBulkUpdateError(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{2}, {3}, {10}})
+	c.Assert(res, DeepEquals, []doc{{N: 2}, {N: 3}, {N: 10}})
 }
 
 func (s *S) TestBulkUpdateErrorUnordered(c *C) {
@@ -369,7 +370,7 @@ func (s *S) TestBulkUpdateErrorUnordered(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{2}, {10}, {30}})
+	c.Assert(res, DeepEquals, []doc{{N: 2}, {N: 10}, {N: 30}})
 }
 
 func (s *S) TestBulkUpdateAll(c *C) {
@@ -398,7 +399,7 @@ func (s *S) TestBulkUpdateAll(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{3}, {4}, {5}})
+	c.Assert(res, DeepEquals, []doc{{N: 3}, {N: 4}, {N: 5}})
 }
 
 func (s *S) TestBulkMixedUnordered(c *C) {
@@ -428,7 +429,7 @@ func (s *S) TestBulkMixedUnordered(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{2}, {3}, {4}})
+	c.Assert(res, DeepEquals, []doc{{N: 2}, {N: 3}, {N: 4}})
 }
 
 func (s *S) TestBulkUpsert(c *C) {
@@ -452,7 +453,7 @@ func (s *S) TestBulkUpsert(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{1}, {20}, {30}, {40}})
+	c.Assert(res, DeepEquals, []doc{{N: 1}, {N: 20}, {N: 30}, {N: 40}})
 }
 
 func (s *S) TestBulkRemove(c *C) {
@@ -476,7 +477,7 @@ func (s *S) TestBulkRemove(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{3}, {4}})
+	c.Assert(res, DeepEquals, []doc{{N: 3}, {N: 4}})
 }
 
 func (s *S) TestBulkRemoveAll(c *C) {
@@ -500,5 +501,5 @@ func (s *S) TestBulkRemoveAll(c *C) {
 	var res []doc
 	err = coll.Find(nil).Sort("n").All(&res)
 	c.Assert(err, IsNil)
-	c.Assert(res, DeepEquals, []doc{{3}})
+	c.Assert(res, DeepEquals, []doc{{N: 3}})
 }

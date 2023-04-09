@@ -7,11 +7,11 @@ import (
 
 	. "gopkg.in/check.v1"
 
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/dbtest"
+	"github.com/3JoB/mgo"
+	"github.com/3JoB/mgo/dbtest"
 )
 
-type M map[string]interface{}
+type M map[string]any
 
 func TestAll(t *testing.T) {
 	TestingT(t)

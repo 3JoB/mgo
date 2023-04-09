@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/3JoB/mgo/bson"
 )
 
 // ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ func (server *mongoServer) Connect(timeout time.Duration) (*mongoSocket, error) 
 	switch {
 	case !dial.isSet():
 		// Cannot do this because it lacks timeout support. :-(
-		//conn, err = net.DialTCP("tcp", nil, server.tcpaddr)
+		// conn, err = net.DialTCP("tcp", nil, server.tcpaddr)
 		conn, err = net.DialTimeout("tcp", server.ResolvedAddr, timeout)
 		if tcpconn, ok := conn.(*net.TCPConn); ok {
 			tcpconn.SetKeepAlive(true)
@@ -170,7 +170,7 @@ func (server *mongoServer) Connect(timeout time.Duration) (*mongoSocket, error) 
 	case dial.old != nil:
 		conn, err = dial.old(server.tcpaddr)
 	case dial.new != nil:
-		conn, err = dial.new(&ServerAddr{server.Addr, server.tcpaddr})
+		conn, err = dial.new(&ServerAddr{str: server.Addr, tcp: server.tcpaddr})
 	default:
 		panic("dialer is set, but both dial.old and dial.new are nil")
 	}
@@ -292,7 +292,7 @@ func (server *mongoServer) pinger(loop bool) {
 	}
 	op := queryOp{
 		collection: "admin.$cmd",
-		query:      bson.D{{"ping", 1}},
+		query:      bson.D{{Name: "ping", Value: 1}},
 		flags:      flagSlaveOk,
 		limit:      -1,
 	}
@@ -305,7 +305,7 @@ func (server *mongoServer) pinger(loop bool) {
 		if err == nil {
 			start := time.Now()
 			_, _ = socket.SimpleQuery(&op)
-			delay := time.Now().Sub(start)
+			delay := time.Since(start)
 
 			server.pingWindow[server.pingIndex] = delay
 			server.pingIndex = (server.pingIndex + 1) % len(server.pingWindow)

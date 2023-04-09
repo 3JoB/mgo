@@ -30,7 +30,6 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -39,7 +38,8 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/mgo.v2"
+
+	"github.com/3JoB/mgo"
 )
 
 func (s *S) TestAuthLoginDatabase(c *C) {
@@ -262,7 +262,7 @@ func (s *S) TestAuthUpsertUserOtherDBRoles(c *C) {
 	ruser := &mgo.User{
 		Username:     "myruser",
 		Password:     "mypass",
-		OtherDBRoles: map[string][]mgo.Role{"mydb": []mgo.Role{mgo.RoleRead}},
+		OtherDBRoles: map[string][]mgo.Role{"mydb": {mgo.RoleRead}},
 	}
 
 	err = admindb.UpsertUser(ruser)
@@ -788,11 +788,11 @@ func (s *S) TestAuthURLWithDatabase(c *C) {
 
 func (s *S) TestDefaultDatabase(c *C) {
 	tests := []struct{ url, db string }{
-		{"mongodb://root:rapadura@localhost:40002", "test"},
-		{"mongodb://root:rapadura@localhost:40002/admin", "admin"},
-		{"mongodb://localhost:40001", "test"},
-		{"mongodb://localhost:40001/", "test"},
-		{"mongodb://localhost:40001/mydb", "mydb"},
+		{url: "mongodb://root:rapadura@localhost:40002", db: "test"},
+		{url: "mongodb://root:rapadura@localhost:40002/admin", db: "admin"},
+		{url: "mongodb://localhost:40001", db: "test"},
+		{url: "mongodb://localhost:40001/", db: "test"},
+		{url: "mongodb://localhost:40001/mydb", db: "mydb"},
 	}
 
 	for _, test := range tests {
@@ -904,7 +904,7 @@ func (s *S) TestAuthX509Cred(c *C) {
 		c.Skip("server does not support SSL")
 	}
 
-	clientCertPEM, err := ioutil.ReadFile("harness/certs/client.pem")
+	clientCertPEM, err := os.ReadFile("harness/certs/client.pem")
 	c.Assert(err, IsNil)
 
 	clientCert, err := tls.X509KeyPair(clientCertPEM, clientCertPEM)
@@ -936,7 +936,7 @@ func (s *S) TestAuthX509Cred(c *C) {
 	externalDB := session.DB("$external")
 	var x509User mgo.User = mgo.User{
 		Username:     x509Subject,
-		OtherDBRoles: map[string][]mgo.Role{"admin": []mgo.Role{mgo.RoleRoot}},
+		OtherDBRoles: map[string][]mgo.Role{"admin": {mgo.RoleRoot}},
 	}
 	err = externalDB.UpsertUser(&x509User)
 	c.Assert(err, IsNil)

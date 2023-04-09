@@ -2,7 +2,7 @@ package json
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"reflect"
 	"strconv"
 	"testing"
@@ -45,7 +45,7 @@ var ext Extension
 
 type keyed string
 
-func decodeKeyed(data []byte) (interface{}, error) {
+func decodeKeyed(data []byte) (any, error) {
 	return keyed(data), nil
 }
 
@@ -71,7 +71,7 @@ func init() {
 	ext.DecodeKeyed("$key1", decodeKeyed)
 	ext.DecodeKeyed("$func3", decodeKeyed)
 
-	ext.EncodeType(docint(0), func(v interface{}) ([]byte, error) {
+	ext.EncodeType(docint(0), func(v any) ([]byte, error) {
 		s := `{"$docint": ` + strconv.Itoa(int(v.(docint))) + `}`
 		return []byte(s), nil
 	})
@@ -82,8 +82,8 @@ func init() {
 
 type extDecodeTest struct {
 	in  string
-	ptr interface{}
-	out interface{}
+	ptr any
+	out any
 	err error
 
 	noext bool
@@ -91,80 +91,80 @@ type extDecodeTest struct {
 
 var extDecodeTests = []extDecodeTest{
 	// Functions
-	{in: `Func1()`, ptr: new(interface{}), out: map[string]interface{}{
-		"$func1": map[string]interface{}{},
+	{in: `Func1()`, ptr: new(any), out: map[string]any{
+		"$func1": map[string]any{},
 	}},
-	{in: `{"v": Func1()}`, ptr: new(interface{}), out: map[string]interface{}{
-		"v": map[string]interface{}{"$func1": map[string]interface{}{}},
+	{in: `{"v": Func1()}`, ptr: new(any), out: map[string]any{
+		"v": map[string]any{"$func1": map[string]any{}},
 	}},
-	{in: `Func2(1)`, ptr: new(interface{}), out: map[string]interface{}{
-		"$func2": map[string]interface{}{"arg1": float64(1)},
+	{in: `Func2(1)`, ptr: new(any), out: map[string]any{
+		"$func2": map[string]any{"arg1": float64(1)},
 	}},
-	{in: `Func2(1, 2)`, ptr: new(interface{}), out: map[string]interface{}{
-		"$func2": map[string]interface{}{"arg1": float64(1), "arg2": float64(2)},
+	{in: `Func2(1, 2)`, ptr: new(any), out: map[string]any{
+		"$func2": map[string]any{"arg1": float64(1), "arg2": float64(2)},
 	}},
-	{in: `Func2(Func1())`, ptr: new(interface{}), out: map[string]interface{}{
-		"$func2": map[string]interface{}{"arg1": map[string]interface{}{"$func1": map[string]interface{}{}}},
+	{in: `Func2(Func1())`, ptr: new(any), out: map[string]any{
+		"$func2": map[string]any{"arg1": map[string]any{"$func1": map[string]any{}}},
 	}},
-	{in: `Func2(1, 2, 3)`, ptr: new(interface{}), err: fmt.Errorf("json: too many arguments for function Func2")},
-	{in: `BadFunc()`, ptr: new(interface{}), err: fmt.Errorf(`json: unknown function "BadFunc"`)},
+	{in: `Func2(1, 2, 3)`, ptr: new(any), err: errors.New("json: too many arguments for function Func2")},
+	{in: `BadFunc()`, ptr: new(any), err: errors.New(`json: unknown function "BadFunc"`)},
 
 	{in: `Func1()`, ptr: new(funcs), out: funcs{Func1: &funcN{}}},
 	{in: `Func2(1)`, ptr: new(funcs), out: funcs{Func2: &funcN{Arg1: 1}}},
 	{in: `Func2(1, 2)`, ptr: new(funcs), out: funcs{Func2: &funcN{Arg1: 1, Arg2: 2}}},
 
-	{in: `Func2(1, 2, 3)`, ptr: new(funcs), err: fmt.Errorf("json: too many arguments for function Func2")},
-	{in: `BadFunc()`, ptr: new(funcs), err: fmt.Errorf(`json: unknown function "BadFunc"`)},
+	{in: `Func2(1, 2, 3)`, ptr: new(funcs), err: errors.New("json: too many arguments for function Func2")},
+	{in: `BadFunc()`, ptr: new(funcs), err: errors.New(`json: unknown function "BadFunc"`)},
 
-	{in: `Func2(1)`, ptr: new(jsonText), out: jsonText{"Func2(1)"}},
-	{in: `Func2(1, 2)`, ptr: new(funcsText), out: funcsText{Func2: jsonText{"Func2(1, 2)"}}},
-	{in: `{"f": Func2(1, 2), "b": true}`, ptr: new(nestedText), out: nestedText{jsonText{"Func2(1, 2)"}, true}},
+	{in: `Func2(1)`, ptr: new(jsonText), out: jsonText{json: "Func2(1)"}},
+	{in: `Func2(1, 2)`, ptr: new(funcsText), out: funcsText{Func2: jsonText{json: "Func2(1, 2)"}}},
+	{in: `{"f": Func2(1, 2), "b": true}`, ptr: new(nestedText), out: nestedText{F: jsonText{json: "Func2(1, 2)"}, B: true}},
 
 	{in: `Func1()`, ptr: new(struct{}), out: struct{}{}},
 
 	// Functions with "new" prefix
-	{in: `new Func4(1)`, ptr: new(interface{}), out: map[string]interface{}{
-		"$func4": map[string]interface{}{"arg1": float64(1)},
+	{in: `new Func4(1)`, ptr: new(any), out: map[string]any{
+		"$func4": map[string]any{"arg1": float64(1)},
 	}},
 
 	// Constants
-	{in: `Const1`, ptr: new(interface{}), out: const1},
-	{in: `{"c": Const1}`, ptr: new(struct{ C *const1Type }), out: struct{ C *const1Type }{const1}},
+	{in: `Const1`, ptr: new(any), out: const1},
+	{in: `{"c": Const1}`, ptr: new(struct{ C *const1Type }), out: struct{ C *const1Type }{C: const1}},
 
 	// Keyed documents
-	{in: `{"v": {"$key1": 1}}`, ptr: new(interface{}), out: map[string]interface{}{"v": keyed(`{"$key1": 1}`)}},
+	{in: `{"v": {"$key1": 1}}`, ptr: new(any), out: map[string]any{"v": keyed(`{"$key1": 1}`)}},
 	{in: `{"k": {"$key1": 1}}`, ptr: new(keyedType), out: keyedType{K: keyed(`{"$key1": 1}`)}},
-	{in: `{"i": {"$key1": 1}}`, ptr: new(keyedType), err: &UnmarshalTypeError{"object", reflect.TypeOf(0), 18}},
+	{in: `{"i": {"$key1": 1}}`, ptr: new(keyedType), err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(0), Offset: 18}},
 
 	// Keyed function documents
-	{in: `{"v": Func3()}`, ptr: new(interface{}), out: map[string]interface{}{"v": keyed(`Func3()`)}},
+	{in: `{"v": Func3()}`, ptr: new(any), out: map[string]any{"v": keyed(`Func3()`)}},
 	{in: `{"k": Func3()}`, ptr: new(keyedType), out: keyedType{K: keyed(`Func3()`)}},
-	{in: `{"i": Func3()}`, ptr: new(keyedType), err: &UnmarshalTypeError{"object", reflect.TypeOf(0), 13}},
+	{in: `{"i": Func3()}`, ptr: new(keyedType), err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(0), Offset: 13}},
 
 	// Unquoted keys
-	{in: `{$k_1: "bar"}`, ptr: new(interface{}), out: map[string]interface{}{"$k_1": "bar"}},
-	{in: `{$k_1: "bar"}`, ptr: new(unquotedKey), out: unquotedKey{"bar"}},
+	{in: `{$k_1: "bar"}`, ptr: new(any), out: map[string]any{"$k_1": "bar"}},
+	{in: `{$k_1: "bar"}`, ptr: new(unquotedKey), out: unquotedKey{S: "bar"}},
 
-	{in: `{$k_1: "bar"}`, noext: true, ptr: new(interface{}),
-		err: &SyntaxError{"invalid character '$' looking for beginning of object key string", 2}},
+	{in: `{$k_1: "bar"}`, noext: true, ptr: new(any),
+		err: &SyntaxError{msg: "invalid character '$' looking for beginning of object key string", Offset: 2}},
 	{in: `{$k_1: "bar"}`, noext: true, ptr: new(unquotedKey),
-		err: &SyntaxError{"invalid character '$' looking for beginning of object key string", 2}},
+		err: &SyntaxError{msg: "invalid character '$' looking for beginning of object key string", Offset: 2}},
 
 	// Trailing commas
-	{in: `{"k": "v",}`, ptr: new(interface{}), out: map[string]interface{}{"k": "v"}},
+	{in: `{"k": "v",}`, ptr: new(any), out: map[string]any{"k": "v"}},
 	{in: `{"k": "v",}`, ptr: new(struct{}), out: struct{}{}},
-	{in: `["v",]`, ptr: new(interface{}), out: []interface{}{"v"}},
+	{in: `["v",]`, ptr: new(any), out: []any{"v"}},
 
-	{in: `{"k": "v",}`, noext: true, ptr: new(interface{}),
-		err: &SyntaxError{"invalid character '}' looking for beginning of object key string", 11}},
+	{in: `{"k": "v",}`, noext: true, ptr: new(any),
+		err: &SyntaxError{msg: "invalid character '}' looking for beginning of object key string", Offset: 11}},
 	{in: `{"k": "v",}`, noext: true, ptr: new(struct{}),
-		err: &SyntaxError{"invalid character '}' looking for beginning of object key string", 11}},
-	{in: `["a",]`, noext: true, ptr: new(interface{}),
-		err: &SyntaxError{"invalid character ']' looking for beginning of value", 6}},
+		err: &SyntaxError{msg: "invalid character '}' looking for beginning of object key string", Offset: 11}},
+	{in: `["a",]`, noext: true, ptr: new(any),
+		err: &SyntaxError{msg: "invalid character ']' looking for beginning of value", Offset: 6}},
 }
 
 type extEncodeTest struct {
-	in  interface{}
+	in  any
 	out string
 	err error
 }

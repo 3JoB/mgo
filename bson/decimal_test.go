@@ -1,4 +1,4 @@
-﻿// BSON library for Go
+// BSON library for Go
 //
 // Copyright (c) 2010-2012 - Gustavo Niemeyer <gustavo@niemeyer.net>
 //
@@ -28,14 +28,14 @@ package bson_test
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
-	"gopkg.in/mgo.v2/bson"
-
+	"github.com/3JoB/go-json"
+	"github.com/grafana/regexp"
 	. "gopkg.in/check.v1"
+
+	"github.com/3JoB/mgo/bson"
 )
 
 // --------------------------------------------------------------------------
@@ -97,7 +97,7 @@ func (s *S) TestDecimalTests(c *C) {
 
 			// Unmarshal value from BSON data.
 			bsonData, err := hex.DecodeString(test.BSON)
-			var bsonValue struct{ D interface{} }
+			var bsonValue struct{ D any }
 			err = bson.Unmarshal(bsonData, &bsonValue)
 			c.Assert(err, IsNil)
 			dec128, ok := bsonValue.D.(bson.Decimal128)
@@ -140,7 +140,7 @@ func (s *S) TestDecimalTests(c *C) {
 			}
 
 			// Marshal the parsed canonical representation.
-			var parsedValue struct{ D interface{} }
+			var parsedValue struct{ D any }
 			parsedValue.D = parsed
 			data, err = bson.Marshal(parsedValue)
 			c.Assert(err, IsNil)
@@ -182,7 +182,7 @@ func (s *S) BenchmarkDecimal128Parse(c *C) {
 }
 
 var decimalTestsJSON = []struct{ file, json string }{
-	{"decimal128-1.json", `
+	{file: "decimal128-1.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",
@@ -502,7 +502,7 @@ var decimalTestsJSON = []struct{ file, json string }{
 }
 `},
 
-	{"decimal128-2.json", `
+	{file: "decimal128-2.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",
@@ -1297,7 +1297,7 @@ var decimalTestsJSON = []struct{ file, json string }{
 }
 `},
 
-	{"decimal128-3.json", `
+	{file: "decimal128-3.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",
@@ -3071,7 +3071,7 @@ var decimalTestsJSON = []struct{ file, json string }{
 }
 `},
 
-	{"decimal128-4.json", `
+	{file: "decimal128-4.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",
@@ -3239,7 +3239,7 @@ var decimalTestsJSON = []struct{ file, json string }{
 }
 `},
 
-	{"decimal128-5.json", `
+	{file: "decimal128-5.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",
@@ -3643,7 +3643,7 @@ var decimalTestsJSON = []struct{ file, json string }{
 }
 `},
 
-	{"decimal128-6.json", `
+	{file: "decimal128-6.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",
@@ -3777,7 +3777,7 @@ var decimalTestsJSON = []struct{ file, json string }{
 }
 `},
 
-	{"decimal128-7.json", `
+	{file: "decimal128-7.json", json: `
 {
     "description": "Decimal128",
     "bson_type": "0x13",

@@ -3,6 +3,7 @@
 // This package is not meant to be used by itself.
 //
 
+//go:build !windows
 // +build !windows
 
 package sasl
@@ -19,6 +20,7 @@ package sasl
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -98,7 +100,7 @@ func (ss *saslSession) Close() {
 func (ss *saslSession) Step(serverData []byte) (clientData []byte, done bool, err error) {
 	ss.step++
 	if ss.step > 10 {
-		return nil, false, fmt.Errorf("too many SASL steps without authentication")
+		return nil, false, errors.New("too many SASL steps without authentication")
 	}
 	var cclientData *C.char
 	var cclientDataLen C.uint

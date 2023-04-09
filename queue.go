@@ -27,7 +27,7 @@
 package mgo
 
 type queue struct {
-	elems               []interface{}
+	elems               []any
 	nelems, popi, pushi int
 }
 
@@ -35,8 +35,8 @@ func (q *queue) Len() int {
 	return q.nelems
 }
 
-func (q *queue) Push(elem interface{}) {
-	//debugf("Pushing(pushi=%d popi=%d cap=%d): %#v\n",
+func (q *queue) Push(elem any) {
+	// debugf("Pushing(pushi=%d popi=%d cap=%d): %#v\n",
 	//       q.pushi, q.popi, len(q.elems), elem)
 	if q.nelems == len(q.elems) {
 		q.expand()
@@ -44,12 +44,12 @@ func (q *queue) Push(elem interface{}) {
 	q.elems[q.pushi] = elem
 	q.nelems++
 	q.pushi = (q.pushi + 1) % len(q.elems)
-	//debugf(" Pushed(pushi=%d popi=%d cap=%d): %#v\n",
+	// debugf(" Pushed(pushi=%d popi=%d cap=%d): %#v\n",
 	//       q.pushi, q.popi, len(q.elems), elem)
 }
 
-func (q *queue) Pop() (elem interface{}) {
-	//debugf("Popping(pushi=%d popi=%d cap=%d)\n",
+func (q *queue) Pop() (elem any) {
+	// debugf("Popping(pushi=%d popi=%d cap=%d)\n",
 	//       q.pushi, q.popi, len(q.elems))
 	if q.nelems == 0 {
 		return nil
@@ -58,7 +58,7 @@ func (q *queue) Pop() (elem interface{}) {
 	q.elems[q.popi] = nil // Help GC.
 	q.nelems--
 	q.popi = (q.popi + 1) % len(q.elems)
-	//debugf(" Popped(pushi=%d popi=%d cap=%d): %#v\n",
+	// debugf(" Popped(pushi=%d popi=%d cap=%d): %#v\n",
 	//       q.pushi, q.popi, len(q.elems), elem)
 	return elem
 }
@@ -73,7 +73,7 @@ func (q *queue) expand() {
 	} else {
 		newcap = curcap + (curcap / 4)
 	}
-	elems := make([]interface{}, newcap)
+	elems := make([]any, newcap)
 
 	if q.popi == 0 {
 		copy(elems, q.elems)

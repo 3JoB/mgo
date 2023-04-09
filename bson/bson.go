@@ -26,7 +26,7 @@
 
 // Package bson is an implementation of the BSON specification for Go:
 //
-//     http://bsonspec.org
+//	http://bsonspec.org
 //
 // It was created as part of the mgo MongoDB driver for Go, but is standalone
 // and may be used on its own without the driver.
@@ -37,16 +37,18 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
+	// "encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/3JoB/go-json"
+	"github.com/3JoB/go-reflect"
 )
 
 // --------------------------------------------------------------------------
@@ -59,7 +61,7 @@ import (
 // If GetBSON returns return a non-nil error, the marshalling procedure
 // will stop and error out with the provided value.
 type Getter interface {
-	GetBSON() (interface{}, error)
+	GetBSON() (any, error)
 }
 
 // A value implementing the bson.Setter interface will receive the BSON
@@ -83,12 +85,11 @@ type Getter interface {
 //
 // For example:
 //
-//     type MyString string
+//	type MyString string
 //
-//     func (s *MyString) SetBSON(raw bson.Raw) error {
-//         return raw.Unmarshal(s)
-//     }
-//
+//	func (s *MyString) SetBSON(raw bson.Raw) error {
+//	    return raw.Unmarshal(s)
+//	}
 type Setter interface {
 	SetBSON(raw Raw) error
 }
@@ -101,16 +102,16 @@ var SetZero = errors.New("set to zero")
 // M is a convenient alias for a map[string]interface{} map, useful for
 // dealing with BSON in a native way.  For instance:
 //
-//     bson.M{"a": 1, "b": true}
+//	bson.M{"a": 1, "b": true}
 //
 // There's no special handling for this type in addition to what's done anyway
 // for an equivalent map type.  Elements in the map will be dumped in an
 // undefined ordered. See also the bson.D type for an ordered alternative.
-type M map[string]interface{}
+type M map[string]any
 
 // D represents a BSON document containing ordered elements. For example:
 //
-//     bson.D{{"a", 1}, {"b", true}}
+//	bson.D{{"a", 1}, {"b", true}}
 //
 // In some situations, such as when creating indexes for MongoDB, the order in
 // which the elements are defined is important.  If the order is not important,
@@ -120,7 +121,7 @@ type D []DocElem
 // DocElem is an element of the bson.D document representation.
 type DocElem struct {
 	Name  string
-	Value interface{}
+	Value any
 }
 
 // Map returns a map out of the ordered element name/value pairs in d.
@@ -139,8 +140,7 @@ func (d D) Map() (m M) {
 //
 // Relevant documentation:
 //
-//     http://bsonspec.org/#/specification
-//
+//	http://bsonspec.org/#/specification
 type Raw struct {
 	Kind byte
 	Data []byte
@@ -294,12 +294,12 @@ func (id *ObjectId) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	if len(data) != 26 || data[0] != '"' || data[25] != '"' {
-		return errors.New(fmt.Sprintf("invalid ObjectId in JSON: %s", string(data)))
+		return fmt.Errorf("invalid ObjectId in JSON: %s", string(data))
 	}
 	var buf [12]byte
 	_, err := hex.Decode(buf[:], data[1:25])
 	if err != nil {
-		return errors.New(fmt.Sprintf("invalid ObjectId in JSON: %s (%s)", string(data), err))
+		return fmt.Errorf("invalid ObjectId in JSON: %s (%s)", string(data), err)
 	}
 	*id = ObjectId(string(buf[:]))
 	return nil
@@ -405,13 +405,12 @@ var Undefined undefined
 // Binary is a representation for non-standard binary values.  Any kind should
 // work, but the following are known as of this writing:
 //
-//   0x00 - Generic. This is decoded as []byte(data), not Binary{0x00, data}.
-//   0x01 - Function (!?)
-//   0x02 - Obsolete generic.
-//   0x03 - UUID
-//   0x05 - MD5
-//   0x80 - User defined.
-//
+//	0x00 - Generic. This is decoded as []byte(data), not Binary{0x00, data}.
+//	0x01 - Function (!?)
+//	0x02 - Obsolete generic.
+//	0x03 - UUID
+//	0x05 - MD5
+//	0x80 - User defined.
 type Binary struct {
 	Kind byte
 	Data []byte
@@ -435,7 +434,7 @@ type RegEx struct {
 // used when evaluating the provided Code.
 type JavaScript struct {
 	Code  string
-	Scope interface{}
+	Scope any
 }
 
 // DBPointer refers to a document id in a namespace.
@@ -473,37 +472,36 @@ func handleErr(err *error) {
 // The tag may also contain flags to tweak the marshalling behavior for
 // the field. The tag formats accepted are:
 //
-//     "[<key>][,<flag1>[,<flag2>]]"
+//	"[<key>][,<flag1>[,<flag2>]]"
 //
-//     `(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
+//	`(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
 //
 // The following flags are currently supported:
 //
-//     omitempty  Only include the field if it's not set to the zero
-//                value for the type or to empty slices or maps.
+//	omitempty  Only include the field if it's not set to the zero
+//	           value for the type or to empty slices or maps.
 //
-//     minsize    Marshal an int64 value as an int32, if that's feasible
-//                while preserving the numeric value.
+//	minsize    Marshal an int64 value as an int32, if that's feasible
+//	           while preserving the numeric value.
 //
-//     inline     Inline the field, which must be a struct or a map,
-//                causing all of its fields or keys to be processed as if
-//                they were part of the outer struct. For maps, keys must
-//                not conflict with the bson keys of other struct fields.
+//	inline     Inline the field, which must be a struct or a map,
+//	           causing all of its fields or keys to be processed as if
+//	           they were part of the outer struct. For maps, keys must
+//	           not conflict with the bson keys of other struct fields.
 //
 // Some examples:
 //
-//     type T struct {
-//         A bool
-//         B int    "myb"
-//         C string "myc,omitempty"
-//         D string `bson:",omitempty" json:"jsonkey"`
-//         E int64  ",minsize"
-//         F int64  "myf,omitempty,minsize"
-//     }
-//
-func Marshal(in interface{}) (out []byte, err error) {
+//	type T struct {
+//	    A bool
+//	    B int    "myb"
+//	    C string "myc,omitempty"
+//	    D string `bson:",omitempty" json:"jsonkey"`
+//	    E int64  ",minsize"
+//	    F int64  "myf,omitempty,minsize"
+//	}
+func Marshal(in any) (out []byte, err error) {
 	defer handleErr(&err)
-	e := &encoder{make([]byte, 0, initialBufferSize)}
+	e := &encoder{out: make([]byte, 0, initialBufferSize)}
 	e.addDoc(reflect.ValueOf(in))
 	return e.out, nil
 }
@@ -516,34 +514,34 @@ func Marshal(in interface{}) (out []byte, err error) {
 // The tag may also contain flags to tweak the marshalling behavior for
 // the field. The tag formats accepted are:
 //
-//     "[<key>][,<flag1>[,<flag2>]]"
+//	"[<key>][,<flag1>[,<flag2>]]"
 //
-//     `(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
+//	`(...) bson:"[<key>][,<flag1>[,<flag2>]]" (...)`
 //
 // The following flags are currently supported during unmarshal (see the
 // Marshal method for other flags):
 //
-//     inline     Inline the field, which must be a struct or a map.
-//                Inlined structs are handled as if its fields were part
-//                of the outer struct. An inlined map causes keys that do
-//                not match any other struct field to be inserted in the
-//                map rather than being discarded as usual.
+//	inline     Inline the field, which must be a struct or a map.
+//	           Inlined structs are handled as if its fields were part
+//	           of the outer struct. An inlined map causes keys that do
+//	           not match any other struct field to be inserted in the
+//	           map rather than being discarded as usual.
 //
 // The target field or element types of out may not necessarily match
 // the BSON values of the provided data.  The following conversions are
 // made automatically:
 //
-// - Numeric types are converted if at least the integer part of the
-//   value would be preserved correctly
-// - Bools are converted to numeric types as 1 or 0
-// - Numeric types are converted to bools as true if not 0 or false otherwise
-// - Binary and string BSON data is converted to a string, array or byte slice
+//   - Numeric types are converted if at least the integer part of the
+//     value would be preserved correctly
+//   - Bools are converted to numeric types as 1 or 0
+//   - Numeric types are converted to bools as true if not 0 or false otherwise
+//   - Binary and string BSON data is converted to a string, array or byte slice
 //
 // If the value would not fit the type and cannot be converted, it's
 // silently skipped.
 //
 // Pointer values are initialized when necessary.
-func Unmarshal(in []byte, out interface{}) (err error) {
+func Unmarshal(in []byte, out any) (err error) {
 	if raw, ok := out.(*Raw); ok {
 		raw.Kind = 3
 		raw.Data = in
@@ -570,7 +568,7 @@ func Unmarshal(in []byte, out interface{}) (err error) {
 //
 // See the Unmarshal function documentation for more details on the
 // unmarshalling process.
-func (raw Raw) Unmarshal(out interface{}) (err error) {
+func (raw Raw) Unmarshal(out any) (err error) {
 	defer handleErr(&err)
 	v := reflect.ValueOf(out)
 	switch v.Kind() {
@@ -581,7 +579,7 @@ func (raw Raw) Unmarshal(out interface{}) (err error) {
 		d := newDecoder(raw.Data)
 		good := d.readElemTo(v, raw.Kind)
 		if !good {
-			return &TypeError{v.Type(), raw.Kind}
+			return &TypeError{Type: v.Type(), Kind: raw.Kind}
 		}
 	case reflect.Struct:
 		return errors.New("Raw Unmarshal can't deal with struct values. Use a pointer.")
@@ -647,7 +645,7 @@ func getStructInfo(st reflect.Type) (*structInfo, error) {
 		info := fieldInfo{Num: i}
 
 		tag := field.Tag.Get("bson")
-		if tag == "" && strings.Index(string(field.Tag), ":") < 0 {
+		if tag == "" && !strings.Contains(string(field.Tag), ":") {
 			tag = string(field.Tag)
 		}
 		if tag == "-" {
@@ -722,10 +720,10 @@ func getStructInfo(st reflect.Type) (*structInfo, error) {
 		fieldsMap[info.Key] = info
 	}
 	sinfo = &structInfo{
-		fieldsMap,
-		fieldsList,
-		inlineMap,
-		reflect.New(st).Elem(),
+		FieldsMap:  fieldsMap,
+		FieldsList: fieldsList,
+		InlineMap:  inlineMap,
+		Zero:       reflect.New(st).Elem(),
 	}
 	structMapMutex.Lock()
 	structMap[st] = sinfo

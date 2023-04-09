@@ -72,7 +72,7 @@ func SetDebug(debug bool) {
 	globalDebug = debug
 }
 
-func log(v ...interface{}) {
+func log(v ...any) {
 	if raceDetector {
 		globalMutex.Lock()
 		defer globalMutex.Unlock()
@@ -82,7 +82,7 @@ func log(v ...interface{}) {
 	}
 }
 
-func logln(v ...interface{}) {
+func logln(v ...any) {
 	if raceDetector {
 		globalMutex.Lock()
 		defer globalMutex.Unlock()
@@ -92,7 +92,7 @@ func logln(v ...interface{}) {
 	}
 }
 
-func logf(format string, v ...interface{}) {
+func logf(format string, v ...any) {
 	if raceDetector {
 		globalMutex.Lock()
 		defer globalMutex.Unlock()
@@ -102,7 +102,7 @@ func logf(format string, v ...interface{}) {
 	}
 }
 
-func debug(v ...interface{}) {
+func debug(v ...any) {
 	if raceDetector {
 		globalMutex.Lock()
 		defer globalMutex.Unlock()
@@ -112,7 +112,7 @@ func debug(v ...interface{}) {
 	}
 }
 
-func debugln(v ...interface{}) {
+func debugln(v ...any) {
 	if raceDetector {
 		globalMutex.Lock()
 		defer globalMutex.Unlock()
@@ -122,7 +122,7 @@ func debugln(v ...interface{}) {
 	}
 }
 
-func debugf(format string, v ...interface{}) {
+func debugf(format string, v ...any) {
 	if raceDetector {
 		globalMutex.Lock()
 		defer globalMutex.Unlock()

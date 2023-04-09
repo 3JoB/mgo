@@ -35,8 +35,9 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+
+	"github.com/3JoB/mgo"
+	"github.com/3JoB/mgo/bson"
 )
 
 func (s *S) TestNewSession(c *C) {
@@ -1095,13 +1096,13 @@ func (s *S) TestSocketTimeoutOnInactiveSocket(c *C) {
 func (s *S) TestDialWithReplicaSetName(c *C) {
 	seedLists := [][]string{
 		// rs1 primary and rs2 primary
-		[]string{"localhost:40011", "localhost:40021"},
+		{"localhost:40011", "localhost:40021"},
 		// rs1 primary and rs2 secondary
-		[]string{"localhost:40011", "localhost:40022"},
+		{"localhost:40011", "localhost:40022"},
 		// rs1 secondary and rs2 primary
-		[]string{"localhost:40012", "localhost:40021"},
+		{"localhost:40012", "localhost:40021"},
 		// rs1 secondary and rs2 secondary
-		[]string{"localhost:40012", "localhost:40022"},
+		{"localhost:40012", "localhost:40022"},
 	}
 
 	rs2Members := []string{":40021", ":40022", ":40023"}
@@ -1152,7 +1153,6 @@ func (s *S) TestDialWithReplicaSetName(c *C) {
 		verifySyncedServers(session, 1)
 		session.Close()
 	}
-
 }
 
 func (s *S) TestDirect(c *C) {
@@ -1477,7 +1477,6 @@ func (s *S) TestSecondaryModeWithMongosInsert(c *C) {
 	c.Assert(result.A, Equals, 1)
 }
 
-
 func (s *S) TestRemovalOfClusterMember(c *C) {
 	if *fast {
 		c.Skip("-fast")
@@ -1516,7 +1515,7 @@ func (s *S) TestRemovalOfClusterMember(c *C) {
 			"40023": `{_id: 3, host: "127.0.0.1:40023", priority: 0, tags: {rs2: "c"}}`,
 		}
 		master.Refresh()
-		master.Run(bson.D{{"$eval", `rs.add(` + config[hostPort(slaveAddr)] + `)`}}, nil)
+		master.Run(bson.D{{Name: "$eval", Value: `rs.add(` + config[hostPort(slaveAddr)] + `)`}}, nil)
 		master.Close()
 		slave.Close()
 
@@ -1531,7 +1530,7 @@ func (s *S) TestRemovalOfClusterMember(c *C) {
 
 	c.Logf("========== Removing slave: %s ==========", slaveAddr)
 
-	master.Run(bson.D{{"$eval", `rs.remove("` + slaveAddr + `")`}}, nil)
+	master.Run(bson.D{{Name: "$eval", Value: `rs.remove("` + slaveAddr + `")`}}, nil)
 
 	master.Refresh()
 
@@ -1584,7 +1583,7 @@ func (s *S) TestPoolLimitSimple(c *C) {
 			defer copy.Close()
 			started := time.Now()
 			c.Check(copy.Ping(), IsNil)
-			done <- time.Now().Sub(started)
+			done <- time.Since(started)
 		}()
 
 		time.Sleep(300 * time.Millisecond)
@@ -1634,7 +1633,7 @@ func (s *S) TestPoolLimitMany(c *C) {
 	// connection to the master, over the limit. Once the goroutine
 	// above releases its socket, it should move on.
 	session.Ping()
-	delay := time.Now().Sub(before)
+	delay := time.Since(before)
 	c.Assert(delay > 3e9, Equals, true)
 	c.Assert(delay < 6e9, Equals, true)
 }
@@ -1964,13 +1963,13 @@ func (s *S) TestSelectServers(c *C) {
 	var result struct{ Host string }
 
 	session.Refresh()
-	session.SelectServers(bson.D{{"rs1", "b"}})
+	session.SelectServers(bson.D{{Name: "rs1", Value: "b"}})
 	err = session.Run("serverStatus", &result)
 	c.Assert(err, IsNil)
 	c.Assert(hostPort(result.Host), Equals, "40012")
 
 	session.Refresh()
-	session.SelectServers(bson.D{{"rs1", "c"}})
+	session.SelectServers(bson.D{{Name: "rs1", Value: "c"}})
 	err = session.Run("serverStatus", &result)
 	c.Assert(err, IsNil)
 	c.Assert(hostPort(result.Host), Equals, "40013")
@@ -2019,7 +2018,7 @@ func (s *S) TestSelectServersWithMongos(c *C) {
 	mongos.SetMode(mgo.Monotonic, true)
 
 	mongos.Refresh()
-	mongos.SelectServers(bson.D{{"rs2", slave1}})
+	mongos.SelectServers(bson.D{{Name: "rs2", Value: slave1}})
 	coll := mongos.DB("mydb").C("mycoll")
 	result := &struct{}{}
 	for i := 0; i != 5; i++ {
@@ -2028,7 +2027,7 @@ func (s *S) TestSelectServersWithMongos(c *C) {
 	}
 
 	mongos.Refresh()
-	mongos.SelectServers(bson.D{{"rs2", slave2}})
+	mongos.SelectServers(bson.D{{Name: "rs2", Value: slave2}})
 	coll = mongos.DB("mydb").C("mycoll")
 	for i := 0; i != 7; i++ {
 		err := coll.Find(nil).One(result)

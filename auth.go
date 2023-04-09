@@ -34,8 +34,8 @@ import (
 	"fmt"
 	"sync"
 
-	"gopkg.in/mgo.v2/bson"
-	"gopkg.in/mgo.v2/internal/scram"
+	"github.com/3JoB/mgo/bson"
+	"github.com/3JoB/mgo/internal/scram"
 )
 
 type authCmd struct {
@@ -372,7 +372,7 @@ func (s *saslScram) Step(serverData []byte) (clientData []byte, done bool, err e
 	return s.client.Out(), !more, s.client.Err()
 }
 
-func (socket *mongoSocket) loginRun(db string, query, result interface{}, f func() error) error {
+func (socket *mongoSocket) loginRun(db string, query, result any, f func() error) error {
 	var mutex sync.Mutex
 	var replyErr error
 	mutex.Lock()
@@ -427,13 +427,13 @@ func (socket *mongoSocket) LogoutAll() {
 	socket.Unlock()
 }
 
-func (socket *mongoSocket) flushLogout() (ops []interface{}) {
+func (socket *mongoSocket) flushLogout() (ops []any) {
 	socket.Lock()
 	if l := len(socket.logout); l > 0 {
 		debugf("Socket %p to %s: logout all (flushing %d)", socket, socket.addr, l)
 		for i := 0; i != l; i++ {
 			op := queryOp{}
-			op.query = &logoutCmd{1}
+			op.query = &logoutCmd{Logout: 1}
 			op.collection = socket.logout[i].Source + ".$cmd"
 			op.limit = -1
 			ops = append(ops, &op)

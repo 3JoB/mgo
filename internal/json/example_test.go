@@ -99,9 +99,9 @@ func ExampleDecoder_Token() {
 		}
 		fmt.Printf("%T: %v", t, t)
 		if dec.More() {
-			fmt.Printf(" (more)")
+			fmt.Print(" (more)")
 		}
-		fmt.Printf("\n")
+		fmt.Print("\n")
 	}
 	// Output:
 	// json.Delim: { (more)
@@ -146,7 +146,6 @@ func ExampleDecoder_Decode_stream() {
 	var m Message
 	// while the array contains values
 	for dec.More() {
-
 		// decode an array value (Message)
 		err := dec.Decode(&m)
 		if err != nil {
@@ -171,7 +170,6 @@ func ExampleDecoder_Decode_stream() {
 	// Sam: Go fmt who?
 	// Ed: Go fmt yourself!
 	// json.Delim: ]
-
 }
 
 // This example uses RawMessage to delay parsing part of a JSON message.
@@ -202,7 +200,7 @@ func ExampleRawMessage() {
 	}
 
 	for _, c := range colors {
-		var dst interface{}
+		var dst any
 		switch c.Space {
 		case "RGB":
 			dst = new(RGB)
@@ -226,8 +224,8 @@ func ExampleIndent() {
 		Number int
 	}
 	roads := []Road{
-		{"Diamond Fork", 29},
-		{"Sheep Creek", 51},
+		{Name: "Diamond Fork", Number: 29},
+		{Name: "Sheep Creek", Number: 51},
 	}
 
 	b, err := json.Marshal(roads)

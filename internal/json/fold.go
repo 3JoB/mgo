@@ -24,8 +24,9 @@ const (
 // 4) simpleLetterEqualFold, no specials, no non-letters.
 //
 // The letters S and K are special because they map to 3 runes, not just 2:
-//  * S maps to s and to U+017F 'ſ' Latin small letter long s
-//  * k maps to K and to U+212A 'K' Kelvin sign
+//   - S maps to s and to U+017F 'ſ' Latin small letter long s
+//   - k maps to K and to U+212A 'K' Kelvin sign
+//
 // See https://play.golang.org/p/tTxjOc0OGo
 //
 // The returned function is specialized for matching against s and
@@ -67,7 +68,7 @@ func equalFoldRight(s, t []byte) bool {
 		if tb < utf8.RuneSelf {
 			if sb != tb {
 				sbUpper := sb & caseMask
-				if 'A' <= sbUpper && sbUpper <= 'Z' {
+				if sbUpper >= 'A' && sbUpper <= 'Z' {
 					if sbUpper != tb&caseMask {
 						return false
 					}
@@ -94,7 +95,6 @@ func equalFoldRight(s, t []byte) bool {
 			return false
 		}
 		t = t[size:]
-
 	}
 	if len(t) > 0 {
 		return false
@@ -115,7 +115,7 @@ func asciiEqualFold(s, t []byte) bool {
 		if sb == tb {
 			continue
 		}
-		if ('a' <= sb && sb <= 'z') || ('A' <= sb && sb <= 'Z') {
+		if (sb >= 'a' && sb <= 'z') || (sb >= 'A' && sb <= 'Z') {
 			if sb&caseMask != tb&caseMask {
 				return false
 			}

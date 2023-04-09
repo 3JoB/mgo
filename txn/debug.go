@@ -2,11 +2,12 @@ package txn
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
 	"sync/atomic"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/3JoB/mgo/bson"
 )
 
 var (
@@ -28,7 +29,7 @@ func SetDebug(debug bool) {
 	debugEnabled = debug
 }
 
-var ErrChaos = fmt.Errorf("interrupted by chaos")
+var ErrChaos = errors.New("interrupted by chaos")
 
 var debugId uint32
 
@@ -45,19 +46,19 @@ func debugPrefix() string {
 	return string(s)
 }
 
-func logf(format string, args ...interface{}) {
+func logf(format string, args ...any) {
 	if logger != nil {
 		logger.Output(2, fmt.Sprintf(format, argsForLog(args)...))
 	}
 }
 
-func debugf(format string, args ...interface{}) {
+func debugf(format string, args ...any) {
 	if debugEnabled && logger != nil {
 		logger.Output(2, fmt.Sprintf(format, argsForLog(args)...))
 	}
 }
 
-func argsForLog(args []interface{}) []interface{} {
+func argsForLog(args []any) []any {
 	for i, arg := range args {
 		switch v := arg.(type) {
 		case bson.ObjectId:

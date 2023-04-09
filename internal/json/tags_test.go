@@ -17,9 +17,9 @@ func TestTagParsing(t *testing.T) {
 		opt  string
 		want bool
 	}{
-		{"foobar", true},
-		{"foo", true},
-		{"bar", false},
+		{opt: "foobar", want: true},
+		{opt: "foo", want: true},
+		{opt: "bar", want: false},
 	} {
 		if opts.Contains(tt.opt) != tt.want {
 			t.Errorf("Contains(%q) = %v", tt.opt, !tt.want)

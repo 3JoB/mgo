@@ -2,23 +2,22 @@
 //
 // For details check the following blog post:
 //
-//     http://blog.labix.org/2012/08/22/multi-doc-transactions-for-mongodb
-//
+//	http://blog.labix.org/2012/08/22/multi-doc-transactions-for-mongodb
 package txn
 
 import (
+	crand "crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	mrand "math/rand"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
-
-	crand "crypto/rand"
-	mrand "math/rand"
+	"github.com/3JoB/mgo"
+	"github.com/3JoB/mgo/bson"
 )
 
 type state int
@@ -65,7 +64,7 @@ func init() {
 type transaction struct {
 	Id     bson.ObjectId `bson:"_id"`
 	State  state         `bson:"s"`
-	Info   interface{}   `bson:"i,omitempty"`
+	Info   any           `bson:"i,omitempty"`
 	Ops    []Op          `bson:"o"`
 	Nonce  string        `bson:"n,omitempty"`
 	Revnos []int64       `bson:"r,omitempty"`
@@ -137,15 +136,17 @@ func newNonce() string {
 type token string
 
 func (tt token) id() bson.ObjectId { return bson.ObjectIdHex(string(tt[:24])) }
-func (tt token) nonce() string     { return string(tt[25:]) }
+
+func (tt token) nonce() string { return string(tt[25:]) }
 
 // Op represents an operation to a single document that may be
 // applied as part of a transaction with other operations.
 type Op struct {
 	// C and Id identify the collection and document this operation
 	// refers to. Id is matched against the "_id" document field.
-	C  string      `bson:"c"`
-	Id interface{} `bson:"d"`
+	C string `bson:"c"`
+
+	Id any `bson:"d"`
 
 	// Assert optionally holds a query document that is used to
 	// test the operation document at the time the transaction is
@@ -155,7 +156,7 @@ type Op struct {
 	// fails. This is also the only way to prevent a transaction
 	// from being being applied (the transaction continues despite
 	// the outcome of Insert, Update, and Remove).
-	Assert interface{} `bson:"a,omitempty"`
+	Assert any `bson:"a,omitempty"`
 
 	// The Insert, Update and Remove fields describe the mutation
 	// intended by the operation. At most one of them may be set
@@ -178,9 +179,10 @@ type Op struct {
 	// The transaction continues even if the document doesn't yet
 	// exist at the time the transaction is applied. Use Assert
 	// with txn.DocExists to make sure it will be removed.
-	Insert interface{} `bson:"i,omitempty"`
-	Update interface{} `bson:"u,omitempty"`
-	Remove bool        `bson:"r,omitempty"`
+	Insert any `bson:"i,omitempty"`
+
+	Update any  `bson:"u,omitempty"`
+	Remove bool `bson:"r,omitempty"`
 }
 
 func (op *Op) isChange() bool {
@@ -188,7 +190,7 @@ func (op *Op) isChange() bool {
 }
 
 func (op *Op) docKey() docKey {
-	return docKey{op.C, op.Id}
+	return docKey{C: op.C, Id: op.Id}
 }
 
 func (op *Op) name() string {
@@ -232,10 +234,10 @@ type Runner struct {
 // will be used for implementing the transactional behavior of insert
 // and remove operations.
 func NewRunner(tc *mgo.Collection) *Runner {
-	return &Runner{tc, tc.Database.C(tc.Name + ".stash"), nil}
+	return &Runner{tc: tc, sc: tc.Database.C(tc.Name + ".stash"), lc: nil}
 }
 
-var ErrAborted = fmt.Errorf("transaction aborted")
+var ErrAborted = errors.New("transaction aborted")
 
 // Run creates a new transaction with ops and runs it immediately.
 // The id parameter specifies the transaction id, and may be written
@@ -263,7 +265,7 @@ var ErrAborted = fmt.Errorf("transaction aborted")
 //
 // Any number of transactions may be run concurrently, with one
 // runner or many.
-func (r *Runner) Run(ops []Op, id bson.ObjectId, info interface{}) (err error) {
+func (r *Runner) Run(ops []Op, id bson.ObjectId, info any) (err error) {
 	const efmt = "error in transaction op %d: %s"
 	for i := range ops {
 		op := &ops[i]
@@ -316,7 +318,7 @@ func (r *Runner) Run(ops []Op, id bson.ObjectId, info interface{}) (err error) {
 // from individual transactions are ignored.
 func (r *Runner) ResumeAll() (err error) {
 	debugf("Resuming all unfinished transactions")
-	iter := r.tc.Find(bson.D{{"s", bson.D{{"$in", []state{tpreparing, tprepared, tapplying}}}}}).Iter()
+	iter := r.tc.Find(bson.D{{Name: "s", Value: bson.D{{Name: "$in", Value: []state{tpreparing, tprepared, tapplying}}}}}).Iter()
 	var t transaction
 	for iter.Next(&t) {
 		if t.State == tapplied || t.State == taborted {
@@ -361,7 +363,7 @@ func (r *Runner) Resume(id bson.ObjectId) (err error) {
 //
 // Saved documents are in the format:
 //
-//     {"_id": <txn id>, <collection>: {"d": [<doc id>, ...], "r": [<doc revno>, ...]}}
+//	{"_id": <txn id>, <collection>: {"d": [<doc id>, ...], "r": [<doc revno>, ...]}}
 //
 // The document revision is the value of the txn-revno field after
 // the change has been applied. Negative values indicate the document
@@ -380,12 +382,12 @@ func (r *Runner) ChangeLog(logc *mgo.Collection) {
 // used during the normal operation of an application. Its purpose is to put
 // a system that has seen unavoidable corruption back in a working state.
 func (r *Runner) PurgeMissing(collections ...string) error {
-	type M map[string]interface{}
-	type S []interface{}
+	type M map[string]any
+	type S []any
 
 	type TDoc struct {
-		Id       interface{} "_id"
-		TxnQueue []string    "txn-queue"
+		Id       any      "_id"
+		TxnQueue []string "txn-queue"
 	}
 
 	found := make(map[bson.ObjectId]bool)
@@ -473,7 +475,7 @@ const (
 	natureStruct
 )
 
-func valueNature(v interface{}) (value interface{}, nature typeNature) {
+func valueNature(v any) (value any, nature typeNature) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.String:
@@ -494,13 +496,15 @@ func valueNature(v interface{}) (value interface{}, nature typeNature) {
 
 type docKey struct {
 	C  string
-	Id interface{}
+	Id any
 }
 
 type docKeys []docKey
 
-func (ks docKeys) Len() int      { return len(ks) }
+func (ks docKeys) Len() int { return len(ks) }
+
 func (ks docKeys) Swap(i, j int) { ks[i], ks[j] = ks[j], ks[i] }
+
 func (ks docKeys) Less(i, j int) bool {
 	a, b := ks[i], ks[j]
 	if a.C != b.C {
@@ -509,7 +513,7 @@ func (ks docKeys) Less(i, j int) bool {
 	return valuecmp(a.Id, b.Id) == -1
 }
 
-func valuecmp(a, b interface{}) int {
+func valuecmp(a, b any) int {
 	av, an := valueNature(a)
 	bv, bn := valueNature(b)
 	if an < bn {
@@ -543,13 +547,13 @@ func valuecmp(a, b interface{}) int {
 	return 1
 }
 
-func structcmp(a, b interface{}) int {
+func structcmp(a, b any) int {
 	av := reflect.ValueOf(a)
 	bv := reflect.ValueOf(b)
 
 	var ai, bi = 0, 0
 	var an, bn = av.NumField(), bv.NumField()
-	var avi, bvi interface{}
+	var avi, bvi any
 	var af, bf reflect.StructField
 	for {
 		for ai < an {

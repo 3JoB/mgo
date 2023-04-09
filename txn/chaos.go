@@ -19,7 +19,8 @@ type Chaos struct {
 	// within the algorithm will be delayed by Slowdown before
 	// continuing.
 	SlowdownChance float64
-	Slowdown       time.Duration
+
+	Slowdown time.Duration
 
 	// If Breakpoint is set, the above settings will only affect the
 	// named breakpoint.

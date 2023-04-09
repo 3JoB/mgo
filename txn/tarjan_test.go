@@ -2,8 +2,10 @@ package txn
 
 import (
 	"fmt"
-	"gopkg.in/mgo.v2/bson"
+
 	. "gopkg.in/check.v1"
+
+	"github.com/3JoB/mgo/bson"
 )
 
 type TarjanSuite struct{}

@@ -59,6 +59,7 @@ import (
 // becomes a member of the object unless
 //   - the field's tag is "-", or
 //   - the field is empty and its tag specifies the "omitempty" option.
+//
 // The empty values are false, 0, any
 // nil pointer or interface value, and any array, slice, map, or string of
 // length zero. The object's default key string is the struct field name
@@ -66,28 +67,28 @@ import (
 // the struct field's tag value is the key name, followed by an optional comma
 // and options. Examples:
 //
-//   // Field is ignored by this package.
-//   Field int `json:"-"`
+//	// Field is ignored by this package.
+//	Field int `json:"-"`
 //
-//   // Field appears in JSON as key "myName".
-//   Field int `json:"myName"`
+//	// Field appears in JSON as key "myName".
+//	Field int `json:"myName"`
 //
-//   // Field appears in JSON as key "myName" and
-//   // the field is omitted from the object if its value is empty,
-//   // as defined above.
-//   Field int `json:"myName,omitempty"`
+//	// Field appears in JSON as key "myName" and
+//	// the field is omitted from the object if its value is empty,
+//	// as defined above.
+//	Field int `json:"myName,omitempty"`
 //
-//   // Field appears in JSON as key "Field" (the default), but
-//   // the field is skipped if empty.
-//   // Note the leading comma.
-//   Field int `json:",omitempty"`
+//	// Field appears in JSON as key "Field" (the default), but
+//	// the field is skipped if empty.
+//	// Note the leading comma.
+//	Field int `json:",omitempty"`
 //
 // The "string" option signals that a field is stored as JSON inside a
 // JSON-encoded string. It applies only to fields of string, floating point,
 // integer, or boolean types. This extra level of encoding is sometimes used
 // when communicating with JavaScript programs:
 //
-//    Int64String int64 `json:",string"`
+//	Int64String int64 `json:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
 // only Unicode letters, digits, dollar signs, percent signs, hyphens,
@@ -134,8 +135,7 @@ import (
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
 // an infinite recursion.
-//
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	e := &encodeState{}
 	err := e.marshal(v, encOpts{escapeHTML: true})
 	if err != nil {
@@ -145,7 +145,7 @@ func Marshal(v interface{}) ([]byte, error) {
 }
 
 // MarshalIndent is like Marshal but applies Indent to format the output.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func newEncodeState() *encodeState {
 	return new(encodeState)
 }
 
-func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
+func (e *encodeState) marshal(v any, opts encOpts) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -306,6 +306,7 @@ func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {
 type encOpts struct {
 	// quoted causes primitive fields to be encoded inside JSON strings.
 	quoted bool
+
 	// escapeHTML causes '<', '>', and '&' to be escaped in JSON strings.
 	escapeHTML bool
 }
@@ -364,7 +365,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 			err = compact(&e.Buffer, b, opts.escapeHTML)
 		}
 		if err != nil {
-			e.error(&MarshalerError{v.Type(), err})
+			e.error(&MarshalerError{Type: v.Type(), Err: err})
 		}
 	}
 	wg.Done()
@@ -446,7 +447,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		err = compact(&e.Buffer, b, opts.escapeHTML)
 	}
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), err})
+		e.error(&MarshalerError{Type: v.Type(), Err: err})
 	}
 }
 
@@ -463,7 +464,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, _ encOpts) {
 		err = compact(&e.Buffer, b, true)
 	}
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), err})
+		e.error(&MarshalerError{Type: v.Type(), Err: err})
 	}
 }
 
@@ -475,7 +476,7 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	m := v.Interface().(encoding.TextMarshaler)
 	b, err := m.MarshalText()
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), err})
+		e.error(&MarshalerError{Type: v.Type(), Err: err})
 	}
 	e.stringBytes(b, opts.escapeHTML)
 }
@@ -489,7 +490,7 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	m := va.Interface().(encoding.TextMarshaler)
 	b, err := m.MarshalText()
 	if err != nil {
-		e.error(&MarshalerError{v.Type(), err})
+		e.error(&MarshalerError{Type: v.Type(), Err: err})
 	}
 	e.stringBytes(b, opts.escapeHTML)
 }
@@ -535,7 +536,7 @@ type floatEncoder int // number of bits
 func (bits floatEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	f := v.Float()
 	if math.IsInf(f, 0) || math.IsNaN(f) {
-		e.error(&UnsupportedValueError{v, strconv.FormatFloat(f, 'g', -1, int(bits))})
+		e.error(&UnsupportedValueError{Value: v, Str: strconv.FormatFloat(f, 'g', -1, int(bits))})
 	}
 	b := strconv.AppendFloat(e.scratch[:0], f, 'g', -1, int(bits))
 	if opts.quoted {
@@ -586,7 +587,7 @@ func interfaceEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func unsupportedTypeEncoder(e *encodeState, v reflect.Value, _ encOpts) {
-	e.error(&UnsupportedTypeError{v.Type()})
+	e.error(&UnsupportedTypeError{Type: v.Type()})
 }
 
 type structEncoder struct {
@@ -644,7 +645,7 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	for i, v := range keys {
 		sv[i].v = v
 		if err := sv[i].resolve(); err != nil {
-			e.error(&MarshalerError{v.Type(), err})
+			e.error(&MarshalerError{Type: v.Type(), Err: err})
 		}
 	}
 	sort.Sort(byString(sv))
@@ -664,7 +665,7 @@ func newMapEncoder(t reflect.Type) encoderFunc {
 	if t.Key().Kind() != reflect.String && !t.Key().Implements(textMarshalerType) {
 		return unsupportedTypeEncoder
 	}
-	me := &mapEncoder{typeEncoder(t.Elem())}
+	me := &mapEncoder{elemEnc: typeEncoder(t.Elem())}
 	return me.encode
 }
 
@@ -710,7 +711,7 @@ func newSliceEncoder(t reflect.Type) encoderFunc {
 		!t.Elem().Implements(textMarshalerType) {
 		return encodeByteSlice
 	}
-	enc := &sliceEncoder{newArrayEncoder(t)}
+	enc := &sliceEncoder{arrayEnc: newArrayEncoder(t)}
 	return enc.encode
 }
 
@@ -731,7 +732,7 @@ func (ae *arrayEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func newArrayEncoder(t reflect.Type) encoderFunc {
-	enc := &arrayEncoder{typeEncoder(t.Elem())}
+	enc := &arrayEncoder{elemEnc: typeEncoder(t.Elem())}
 	return enc.encode
 }
 
@@ -748,7 +749,7 @@ func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
-	enc := &ptrEncoder{typeEncoder(t.Elem())}
+	enc := &ptrEncoder{elemEnc: typeEncoder(t.Elem())}
 	return enc.encode
 }
 
@@ -833,8 +834,10 @@ func (w *reflectWithString) resolve() error {
 // It implements the methods to sort by string.
 type byString []reflectWithString
 
-func (sv byString) Len() int           { return len(sv) }
-func (sv byString) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
+func (sv byString) Len() int { return len(sv) }
+
+func (sv byString) Swap(i, j int) { sv[i], sv[j] = sv[j], sv[i] }
+
 func (sv byString) Less(i, j int) bool { return sv[i].s < sv[j].s }
 
 // NOTE: keep in sync with stringBytes below.
@@ -844,7 +847,7 @@ func (e *encodeState) string(s string, escapeHTML bool) int {
 	start := 0
 	for i := 0; i < len(s); {
 		if b := s[i]; b < utf8.RuneSelf {
-			if 0x20 <= b && b != '\\' && b != '"' &&
+			if b >= 0x20 && b != '\\' && b != '"' &&
 				(!escapeHTML || b != '<' && b != '>' && b != '&') {
 				i++
 				continue
@@ -922,7 +925,7 @@ func (e *encodeState) stringBytes(s []byte, escapeHTML bool) int {
 	start := 0
 	for i := 0; i < len(s); {
 		if b := s[i]; b < utf8.RuneSelf {
-			if 0x20 <= b && b != '\\' && b != '"' &&
+			if b >= 0x20 && b != '\\' && b != '"' &&
 				(!escapeHTML || b != '<' && b != '>' && b != '&') {
 				i++
 				continue

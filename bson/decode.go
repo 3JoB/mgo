@@ -31,10 +31,11 @@ import (
 	"fmt"
 	"math"
 	"net/url"
-	"reflect"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/3JoB/go-reflect"
 )
 
 type decoder struct {
@@ -46,7 +47,7 @@ type decoder struct {
 var typeM = reflect.TypeOf(M{})
 
 func newDecoder(in []byte) *decoder {
-	return &decoder{in, 0, typeM}
+	return &decoder{in: in, i: 0, docType: typeM}
 }
 
 // --------------------------------------------------------------------------
@@ -56,7 +57,7 @@ func corrupted() {
 	panic("Document is corrupted")
 }
 
-func settableValueOf(i interface{}) reflect.Value {
+func settableValueOf(i any) reflect.Value {
 	v := reflect.ValueOf(i)
 	sv := reflect.New(v.Type()).Elem()
 	sv.Set(v)
@@ -283,7 +284,7 @@ func (d *decoder) readDocTo(out reflect.Value) {
 	d.docType = docType
 
 	if outt == typeRaw {
-		out.Set(reflect.ValueOf(Raw{0x03, d.in[start:d.i]}))
+		out.Set(reflect.ValueOf(Raw{Kind: 0x03, Data: d.in[start:d.i]}))
 	}
 }
 
@@ -322,7 +323,7 @@ func (d *decoder) readArrayDocTo(out reflect.Value) {
 	}
 }
 
-func (d *decoder) readSliceDoc(t reflect.Type) interface{} {
+func (d *decoder) readSliceDoc(t reflect.Type) any {
 	tmp := make([]reflect.Value, 0, 8)
 	elemType := t.Elem()
 	if elemType == typeRawDocElem {
@@ -365,7 +366,7 @@ func (d *decoder) readSliceDoc(t reflect.Type) interface{} {
 	return slice.Interface()
 }
 
-var typeSlice = reflect.TypeOf([]interface{}{})
+var typeSlice = reflect.TypeOf([]any{})
 var typeIface = typeSlice.Elem()
 
 func (d *decoder) readDocElems(typ reflect.Type) reflect.Value {
@@ -438,7 +439,6 @@ func (d *decoder) dropElem(kind byte) {
 // If the types are not compatible, the returned ok value will be
 // false and out will be unchanged.
 func (d *decoder) readElemTo(out reflect.Value, kind byte) (good bool) {
-
 	start := d.i
 
 	if kind == 0x03 {
@@ -469,7 +469,7 @@ func (d *decoder) readElemTo(out reflect.Value, kind byte) (good bool) {
 		return true
 	}
 
-	var in interface{}
+	var in any
 
 	switch kind {
 	case 0x01: // Float64
@@ -530,7 +530,7 @@ func (d *decoder) readElemTo(out reflect.Value, kind byte) (good bool) {
 		in = Symbol(d.readStr())
 	case 0x0F: // JavaScript with scope
 		d.i += 4 // Skip length
-		js := JavaScript{d.readStr(), make(M)}
+		js := JavaScript{Code: d.readStr(), Scope: make(M)}
 		d.readDocTo(reflect.ValueOf(js.Scope))
 		in = js
 	case 0x10: // Int32
@@ -555,12 +555,12 @@ func (d *decoder) readElemTo(out reflect.Value, kind byte) (good bool) {
 	outt := out.Type()
 
 	if outt == typeRaw {
-		out.Set(reflect.ValueOf(Raw{kind, d.in[start:d.i]}))
+		out.Set(reflect.ValueOf(Raw{Kind: kind, Data: d.in[start:d.i]}))
 		return true
 	}
 
 	if setter := getSetter(outt, out); setter != nil {
-		err := setter.SetBSON(Raw{kind, d.in[start:d.i]})
+		err := setter.SetBSON(Raw{Kind: kind, Data: d.in[start:d.i]})
 		if err == SetZero {
 			out.Set(reflect.Zero(outt))
 			return true

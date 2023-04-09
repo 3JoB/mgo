@@ -2,13 +2,15 @@ package txn_test
 
 import (
 	"flag"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
-	"gopkg.in/mgo.v2/dbtest"
-	"gopkg.in/mgo.v2/txn"
-	. "gopkg.in/check.v1"
 	"math/rand"
 	"time"
+
+	. "gopkg.in/check.v1"
+
+	"github.com/3JoB/mgo"
+	"github.com/3JoB/mgo/bson"
+	"github.com/3JoB/mgo/dbtest"
+	"github.com/3JoB/mgo/txn"
 )
 
 var (
@@ -208,14 +210,11 @@ func simulate(c *C, server *dbtest.DBServer, params params) {
 
 	changes := make(chan balanceChange, 1024)
 
-	//session.SetMode(mgo.Eventual, true)
+	// session.SetMode(mgo.Eventual, true)
 	for i := 0; i < params.workers; i++ {
 		go func() {
 			n := 0
-			for {
-				if n > 0 && n == params.changes {
-					break
-				}
+			for n <= 0 || n != params.changes {
 				if !stop.IsZero() && time.Now().After(stop) {
 					break
 				}

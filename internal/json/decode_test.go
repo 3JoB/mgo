@@ -28,25 +28,25 @@ type U struct {
 }
 
 type V struct {
-	F1 interface{}
+	F1 any
 	F2 int32
 	F3 Number
 }
 
 // ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshaling with and
 // without UseNumber
-var ifaceNumAsFloat64 = map[string]interface{}{
+var ifaceNumAsFloat64 = map[string]any{
 	"k1": float64(1),
 	"k2": "s",
-	"k3": []interface{}{float64(1), float64(2.0), float64(3e-3)},
-	"k4": map[string]interface{}{"kk1": "s", "kk2": float64(2)},
+	"k3": []any{float64(1), float64(2.0), float64(3e-3)},
+	"k4": map[string]any{"kk1": "s", "kk2": float64(2)},
 }
 
-var ifaceNumAsNumber = map[string]interface{}{
+var ifaceNumAsNumber = map[string]any{
 	"k1": Number("1"),
 	"k2": "s",
-	"k3": []interface{}{Number("1"), Number("2.0"), Number("3e-3")},
-	"k4": map[string]interface{}{"kk1": "s", "kk2": Number("2")},
+	"k3": []any{Number("1"), Number("2.0"), Number("3e-3")},
+	"k4": map[string]any{"kk1": "s", "kk2": Number("2")},
 }
 
 type tx struct {
@@ -60,7 +60,7 @@ type unmarshaler struct {
 }
 
 func (u *unmarshaler) UnmarshalJSON(b []byte) error {
-	*u = unmarshaler{true} // All we need to see that UnmarshalJSON is called.
+	*u = unmarshaler{T: true} // All we need to see that UnmarshalJSON is called.
 	return nil
 }
 
@@ -95,21 +95,21 @@ type ustructText struct {
 var (
 	um0, um1 unmarshaler // target2 of unmarshaling
 	ump      = &um1
-	umtrue   = unmarshaler{true}
-	umslice  = []unmarshaler{{true}}
+	umtrue   = unmarshaler{T: true}
+	umslice  = []unmarshaler{{T: true}}
 	umslicep = new([]unmarshaler)
-	umstruct = ustruct{unmarshaler{true}}
+	umstruct = ustruct{M: unmarshaler{T: true}}
 
 	um0T, um1T   unmarshalerText // target2 of unmarshaling
 	umpType      = &um1T
-	umtrueXY     = unmarshalerText{"x", "y"}
-	umsliceXY    = []unmarshalerText{{"x", "y"}}
+	umtrueXY     = unmarshalerText{A: "x", B: "y"}
+	umsliceXY    = []unmarshalerText{{A: "x", B: "y"}}
 	umslicepType = new([]unmarshalerText)
 	umstructType = new(ustructText)
-	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
+	umstructXY   = ustructText{M: unmarshalerText{A: "x", B: "y"}}
 
 	ummapType = map[unmarshalerText]bool{}
-	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
+	ummapXY   = map[unmarshalerText]bool{{A: "x", B: "y"}: true}
 )
 
 // Test data structures for anonymous fields.
@@ -213,25 +213,27 @@ type S13 struct {
 
 type unmarshalTest struct {
 	in        string
-	ptr       interface{}
-	out       interface{}
+	ptr       any
+	out       any
 	err       error
 	useNumber bool
 }
 
 type Ambig struct {
 	// Given "hello", the first match should win.
-	First  int `json:"HELLO"`
+	First int `json:"HELLO"`
+
 	Second int `json:"Hello"`
 }
 
 type XYZ struct {
-	X interface{}
-	Y interface{}
-	Z interface{}
+	X any
+	Y any
+	Z any
 }
 
-func sliceAddr(x []int) *[]int                 { return &x }
+func sliceAddr(x []int) *[]int { return &x }
+
 func mapAddr(x map[string]int) *map[string]int { return &x }
 
 var unmarshalTests = []unmarshalTest{
@@ -242,19 +244,19 @@ var unmarshalTests = []unmarshalTest{
 	{in: `-5`, ptr: new(int16), out: int16(-5)},
 	{in: `2`, ptr: new(Number), out: Number("2"), useNumber: true},
 	{in: `2`, ptr: new(Number), out: Number("2")},
-	{in: `2`, ptr: new(interface{}), out: float64(2.0)},
-	{in: `2`, ptr: new(interface{}), out: Number("2"), useNumber: true},
+	{in: `2`, ptr: new(any), out: float64(2.0)},
+	{in: `2`, ptr: new(any), out: Number("2"), useNumber: true},
 	{in: `"a\u1234"`, ptr: new(string), out: "a\u1234"},
 	{in: `"http:\/\/"`, ptr: new(string), out: "http://"},
 	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
-	{in: "null", ptr: new(interface{}), out: nil},
-	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7}},
+	{in: "null", ptr: new(any), out: nil},
+	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(""), Offset: 7}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
-	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
-	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsNumber, useNumber: true},
+	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsFloat64},
+	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsNumber, useNumber: true},
 
 	// raw values with whitespace
 	{in: "\n true ", ptr: new(bool), out: true},
@@ -271,19 +273,19 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"alphabet": "xyz"}`, ptr: new(U), out: U{}},
 
 	// syntax errors
-	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
-	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
-	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{msg: "invalid character '}' after object key", Offset: 17}},
+	{in: `[1, 2, 3+]`, err: &SyntaxError{msg: "invalid character '+' after array element", Offset: 9}},
+	{in: `{"X":12x}`, err: &SyntaxError{msg: "invalid character 'x' after object key:value pair", Offset: 8}, useNumber: true},
 
 	// raw value errors
-	{in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{in: " 42 \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 5}},
-	{in: "\x01 true", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{in: " false \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 8}},
-	{in: "\x01 1.2", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{in: " 3.4 \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 6}},
-	{in: "\x01 \"string\"", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{in: " \"string\" \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 11}},
+	{in: "\x01 42", err: &SyntaxError{msg: "invalid character '\\x01' looking for beginning of value", Offset: 1}},
+	{in: " 42 \x01", err: &SyntaxError{msg: "invalid character '\\x01' after top-level value", Offset: 5}},
+	{in: "\x01 true", err: &SyntaxError{msg: "invalid character '\\x01' looking for beginning of value", Offset: 1}},
+	{in: " false \x01", err: &SyntaxError{msg: "invalid character '\\x01' after top-level value", Offset: 8}},
+	{in: "\x01 1.2", err: &SyntaxError{msg: "invalid character '\\x01' looking for beginning of value", Offset: 1}},
+	{in: " 3.4 \x01", err: &SyntaxError{msg: "invalid character '\\x01' after top-level value", Offset: 6}},
+	{in: "\x01 \"string\"", err: &SyntaxError{msg: "invalid character '\\x01' looking for beginning of value", Offset: 1}},
+	{in: " \"string\" \x01", err: &SyntaxError{msg: "invalid character '\\x01' after top-level value", Offset: 11}},
 
 	// array tests
 	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
@@ -291,10 +293,10 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[1, 2, 3]`, ptr: new([5]int), out: [5]int{1, 2, 3, 0, 0}},
 
 	// empty array to interface test
-	{in: `[]`, ptr: new([]interface{}), out: []interface{}{}},
-	{in: `null`, ptr: new([]interface{}), out: []interface{}(nil)},
-	{in: `{"T":[]}`, ptr: new(map[string]interface{}), out: map[string]interface{}{"T": []interface{}{}}},
-	{in: `{"T":null}`, ptr: new(map[string]interface{}), out: map[string]interface{}{"T": interface{}(nil)}},
+	{in: `[]`, ptr: new([]any), out: []any{}},
+	{in: `null`, ptr: new([]any), out: []any(nil)},
+	{in: `{"T":[]}`, ptr: new(map[string]any), out: map[string]any{"T": []any{}}},
+	{in: `{"T":null}`, ptr: new(map[string]any), out: map[string]any{"T": any(nil)}},
 
 	// composite tests
 	{in: allValueIndent, ptr: new(All), out: allValue},
@@ -451,12 +453,12 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
 		ptr: &map[Point]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[Point]string{}), 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[Point]string{}), Offset: 1},
 	},
 	{
 		in:  `{"asdf": "hello world"}`,
 		ptr: &map[unmarshaler]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[unmarshaler]string{}), Offset: 1},
 	},
 }
 
@@ -485,12 +487,12 @@ func TestMarshal(t *testing.T) {
 var badUTF8 = []struct {
 	in, out string
 }{
-	{"hello\xffworld", `"hello\ufffdworld"`},
-	{"", `""`},
-	{"\xff", `"\ufffd"`},
-	{"\xff\xff", `"\ufffd\ufffd"`},
-	{"a\xffb", `"a\ufffdb"`},
-	{"\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", `"日本\ufffd\ufffd\ufffd"`},
+	{in: "hello\xffworld", out: `"hello\ufffdworld"`},
+	{in: "", out: `""`},
+	{in: "\xff", out: `"\ufffd"`},
+	{in: "\xff\xff", out: `"\ufffd\ufffd"`},
+	{in: "a\xffb", out: `"a\ufffdb"`},
+	{in: "\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", out: `"日本\ufffd\ufffd\ufffd"`},
 }
 
 func TestMarshalBadUTF8(t *testing.T) {
@@ -619,7 +621,7 @@ func TestUnmarshal(t *testing.T) {
 
 func TestUnmarshalMarshal(t *testing.T) {
 	initBig()
-	var v interface{}
+	var v any
 	if err := Unmarshal(jsonBig, &v); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -691,7 +693,7 @@ type Xint struct {
 
 func TestUnmarshalInterface(t *testing.T) {
 	var xint Xint
-	var i interface{} = &xint
+	var i any = &xint
 	if err := Unmarshal([]byte(`{"X":1}`), &i); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -733,10 +735,10 @@ type wrongStringTest struct {
 }
 
 var wrongStringTests = []wrongStringTest{
-	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
-	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
-	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
-	{`{"result":123}`, `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
+	{in: `{"result":"x"}`, err: `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
+	{in: `{"result":"foo"}`, err: `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
+	{in: `{"result":"123"}`, err: `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
+	{in: `{"result":123}`, err: `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
 }
 
 // If people misuse the ,string modifier, the error message should be
@@ -754,7 +756,7 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 }
 
 func noSpace(c rune) rune {
-	if isSpace(byte(c)) { //only used for ascii
+	if isSpace(byte(c)) { // only used for ascii
 		return -1
 	}
 	return c
@@ -822,8 +824,8 @@ type All struct {
 	PSmall  *Small
 	PPSmall **Small
 
-	Interface  interface{}
-	PInterface *interface{}
+	Interface  any
+	PInterface *any
 
 	unexported int
 }
@@ -1078,6 +1080,7 @@ func TestRefUnmarshal(t *testing.T) {
 	type S struct {
 		// Ref is defined in encode_test.go.
 		R0 Ref
+
 		R1 *Ref
 		R2 RefText
 		R3 *RefText
@@ -1154,28 +1157,28 @@ func intpp(x *int) **int {
 }
 
 var interfaceSetTests = []struct {
-	pre  interface{}
+	pre  any
 	json string
-	post interface{}
+	post any
 }{
-	{"foo", `"bar"`, "bar"},
-	{"foo", `2`, 2.0},
-	{"foo", `true`, true},
-	{"foo", `null`, nil},
+	{pre: "foo", json: `"bar"`, post: "bar"},
+	{pre: "foo", json: `2`, post: 2.0},
+	{pre: "foo", json: `true`, post: true},
+	{pre: "foo", json: `null`, post: nil},
 
-	{nil, `null`, nil},
-	{new(int), `null`, nil},
-	{(*int)(nil), `null`, nil},
-	{new(*int), `null`, new(*int)},
-	{(**int)(nil), `null`, nil},
-	{intp(1), `null`, nil},
-	{intpp(nil), `null`, intpp(nil)},
-	{intpp(intp(1)), `null`, intpp(nil)},
+	{pre: nil, json: `null`, post: nil},
+	{pre: new(int), json: `null`, post: nil},
+	{pre: (*int)(nil), json: `null`, post: nil},
+	{pre: new(*int), json: `null`, post: new(*int)},
+	{pre: (**int)(nil), json: `null`, post: nil},
+	{pre: intp(1), json: `null`, post: nil},
+	{pre: intpp(nil), json: `null`, post: intpp(nil)},
+	{pre: intpp(intp(1)), json: `null`, post: intpp(nil)},
 }
 
 func TestInterfaceSet(t *testing.T) {
 	for _, tt := range interfaceSetTests {
-		b := struct{ X interface{} }{tt.pre}
+		b := struct{ X any }{X: tt.pre}
 		blob := `{"X":` + tt.json + `}`
 		if err := Unmarshal([]byte(blob), &b); err != nil {
 			t.Errorf("Unmarshal %#q: %v", blob, err)
@@ -1229,7 +1232,6 @@ func TestUnmarshalNulls(t *testing.T) {
 	if !nulls.Bool || nulls.Int != 2 || nulls.Int8 != 3 || nulls.Int16 != 4 || nulls.Int32 != 5 || nulls.Int64 != 6 ||
 		nulls.Uint != 7 || nulls.Uint8 != 8 || nulls.Uint16 != 9 || nulls.Uint32 != 10 || nulls.Uint64 != 11 ||
 		nulls.Float32 != 12.1 || nulls.Float64 != 13.1 || nulls.String != "14" {
-
 		t.Errorf("Unmarshal of null values affected primitives")
 	}
 }
@@ -1301,15 +1303,15 @@ func TestSliceOfCustomByte(t *testing.T) {
 }
 
 var decodeTypeErrorTests = []struct {
-	dest interface{}
+	dest any
 	src  string
 }{
-	{new(string), `{"user": "name"}`}, // issue 4628.
-	{new(error), `{}`},                // issue 4222
-	{new(error), `[]`},
-	{new(error), `""`},
-	{new(error), `123`},
-	{new(error), `true`},
+	{dest: new(string), src: `{"user": "name"}`}, // issue 4628.
+	{dest: new(error), src: `{}`},                // issue 4222
+	{dest: new(error), src: `[]`},
+	{dest: new(error), src: `""`},
+	{dest: new(error), src: `123`},
+	{dest: new(error), src: `true`},
 }
 
 func TestUnmarshalTypeError(t *testing.T) {
@@ -1334,7 +1336,7 @@ var unmarshalSyntaxTests = []string{
 }
 
 func TestUnmarshalSyntax(t *testing.T) {
-	var x interface{}
+	var x any
 	for _, src := range unmarshalSyntaxTests {
 		err := Unmarshal([]byte(src), &x)
 		if _, ok := err.(*SyntaxError); !ok {
@@ -1347,8 +1349,8 @@ func TestUnmarshalSyntax(t *testing.T) {
 // Issue 4660
 type unexportedFields struct {
 	Name string
-	m    map[string]interface{} `json:"-"`
-	m2   map[string]interface{} `json:"abcd"`
+	m    map[string]any `json:"-"`
+	m2   map[string]any `json:"abcd"`
 }
 
 func TestUnmarshalUnexported(t *testing.T) {
@@ -1397,7 +1399,7 @@ func TestUnmarshalJSONLiteralError(t *testing.T) {
 // Issue 3717
 func TestSkipArrayObjects(t *testing.T) {
 	json := `[{}]`
-	var dest [0]interface{}
+	var dest [0]any
 
 	err := Unmarshal([]byte(json), &dest)
 	if err != nil {
@@ -1408,13 +1410,13 @@ func TestSkipArrayObjects(t *testing.T) {
 // Test semantics of pre-filled struct fields and pre-filled map fields.
 // Issue 4900.
 func TestPrefilled(t *testing.T) {
-	ptrToMap := func(m map[string]interface{}) *map[string]interface{} { return &m }
+	ptrToMap := func(m map[string]any) *map[string]any { return &m }
 
 	// Values here change, cannot reuse table across runs.
 	var prefillTests = []struct {
 		in  string
-		ptr interface{}
-		out interface{}
+		ptr any
+		out any
 	}{
 		{
 			in:  `{"X": 1, "Y": 2}`,
@@ -1423,8 +1425,8 @@ func TestPrefilled(t *testing.T) {
 		},
 		{
 			in:  `{"X": 1, "Y": 2}`,
-			ptr: ptrToMap(map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5}),
-			out: ptrToMap(map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5}),
+			ptr: ptrToMap(map[string]any{"X": float32(3), "Y": int16(4), "Z": 1.5}),
+			out: ptrToMap(map[string]any{"X": float64(1), "Y": float64(2), "Z": 1.5}),
 		},
 	}
 
@@ -1441,12 +1443,12 @@ func TestPrefilled(t *testing.T) {
 }
 
 var invalidUnmarshalTests = []struct {
-	v    interface{}
+	v    any
 	want string
 }{
-	{nil, "json: Unmarshal(nil)"},
-	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
-	{(*int)(nil), "json: Unmarshal(nil *int)"},
+	{v: nil, want: "json: Unmarshal(nil)"},
+	{v: struct{}{}, want: "json: Unmarshal(non-pointer struct {})"},
+	{v: (*int)(nil), want: "json: Unmarshal(nil *int)"},
 }
 
 func TestInvalidUnmarshal(t *testing.T) {
@@ -1464,13 +1466,13 @@ func TestInvalidUnmarshal(t *testing.T) {
 }
 
 var invalidUnmarshalTextTests = []struct {
-	v    interface{}
+	v    any
 	want string
 }{
-	{nil, "json: Unmarshal(nil)"},
-	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
-	{(*int)(nil), "json: Unmarshal(nil *int)"},
-	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+	{v: nil, want: "json: Unmarshal(nil)"},
+	{v: struct{}{}, want: "json: Unmarshal(non-pointer struct {})"},
+	{v: (*int)(nil), want: "json: Unmarshal(nil *int)"},
+	{v: new(net.IP), want: "json: cannot unmarshal string into Go value of type *net.IP"},
 }
 
 func TestInvalidUnmarshalText(t *testing.T) {
@@ -1496,7 +1498,7 @@ func TestInvalidStringOption(t *testing.T) {
 		M map[string]string `json:",string"`
 		S []string          `json:",string"`
 		A [1]string         `json:",string"`
-		I interface{}       `json:",string"`
+		I any               `json:",string"`
 		P *int              `json:",string"`
 	}{M: make(map[string]string), S: make([]string, 0), I: num, P: &num}
 

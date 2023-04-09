@@ -32,8 +32,9 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+
+	"github.com/3JoB/mgo"
+	"github.com/3JoB/mgo/bson"
 )
 
 func (s *S) TestGridFSCreate(c *C) {
@@ -136,7 +137,7 @@ func (s *S) TestGridFSFileDetails(c *C) {
 	c.Assert(file.Name(), Equals, "myfile1.txt")
 	c.Assert(file.ContentType(), Equals, "")
 
-	var info interface{}
+	var info any
 	err = file.GetMeta(&info)
 	c.Assert(err, IsNil)
 	c.Assert(info, IsNil)

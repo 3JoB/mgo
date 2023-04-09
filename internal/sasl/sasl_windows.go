@@ -4,6 +4,7 @@ package sasl
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -17,7 +18,8 @@ type saslStepper interface {
 
 type saslSession struct {
 	// Credentials
-	mech          string
+	mech string
+
 	service       string
 	host          string
 	userPlusRealm string
@@ -26,11 +28,13 @@ type saslSession struct {
 
 	// Internal state
 	authComplete bool
-	errored      bool
-	step         int
+
+	errored bool
+	step    int
 
 	// C internal state
 	credHandle C.CredHandle
+
 	context    C.CtxtHandle
 	hasContext C.int
 
@@ -97,7 +101,7 @@ func (ss *saslSession) Close() {
 func (ss *saslSession) Step(serverData []byte) (clientData []byte, done bool, err error) {
 	ss.step++
 	if ss.step > 10 {
-		return nil, false, fmt.Errorf("too many SSPI steps without authentication")
+		return nil, false, errors.New("too many SSPI steps without authentication")
 	}
 	var buffer C.PVOID
 	var bufferLength C.ULONG
@@ -127,10 +131,9 @@ func (ss *saslSession) Step(serverData []byte) (clientData []byte, done bool, er
 	if status == C.SEC_E_OK {
 		ss.authComplete = true
 		return clientData, true, nil
-	} else {
-		ss.hasContext = 1
-		return clientData, false, nil
 	}
+	ss.hasContext = 1
+	return clientData, false, nil
 }
 
 func (ss *saslSession) handleSSPIErrorCode(code C.int) error {

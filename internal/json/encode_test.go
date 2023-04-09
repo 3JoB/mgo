@@ -24,8 +24,8 @@ type Optionals struct {
 	Slr []string `json:"slr,random"`
 	Slo []string `json:"slo,omitempty"`
 
-	Mr map[string]interface{} `json:"mr"`
-	Mo map[string]interface{} `json:",omitempty"`
+	Mr map[string]any `json:"mr"`
+	Mo map[string]any `json:",omitempty"`
 
 	Fr float64 `json:"fr"`
 	Fo float64 `json:"fo,omitempty"`
@@ -55,8 +55,8 @@ var optionalsExpected = `{
 func TestOmitEmpty(t *testing.T) {
 	var o Optionals
 	o.Sw = "something"
-	o.Mr = map[string]interface{}{}
-	o.Mo = map[string]interface{}{}
+	o.Mr = map[string]any{}
+	o.Mo = map[string]any{}
 
 	got, err := MarshalIndent(&o, "", " ")
 	if err != nil {
@@ -105,7 +105,9 @@ func TestStringTag(t *testing.T) {
 
 // byte slices are special even if they're renamed types.
 type renamedByte byte
+
 type renamedByteSlice []byte
+
 type renamedRenamedByteSlice []renamedByte
 
 func TestEncodeRenamedByteSlice(t *testing.T) {
@@ -128,7 +130,7 @@ func TestEncodeRenamedByteSlice(t *testing.T) {
 	}
 }
 
-var unsupportedValues = []interface{}{
+var unsupportedValues = []any{
 	math.NaN(),
 	math.Inf(-1),
 	math.Inf(1),
@@ -258,7 +260,7 @@ type MyStruct struct {
 
 func TestAnonymousNonstruct(t *testing.T) {
 	var i IntType = 11
-	a := MyStruct{i}
+	a := MyStruct{IntType: i}
 	const want = `{"IntType":11}`
 
 	b, err := Marshal(a)
@@ -293,8 +295,8 @@ type BugX struct {
 // Issue 5245.
 func TestEmbeddedBug(t *testing.T) {
 	v := BugB{
-		BugA{"A"},
-		"B",
+		BugA: BugA{S: "A"},
+		S:    "B",
 	}
 	b, err := Marshal(v)
 	if err != nil {
@@ -333,8 +335,8 @@ type BugY struct {
 // Test that a field with a tag dominates untagged fields.
 func TestTaggedFieldDominates(t *testing.T) {
 	v := BugY{
-		BugA{"BugA"},
-		BugD{"BugD"},
+		BugA: BugA{S: "BugA"},
+		BugD: BugD{XXX: "BugD"},
 	}
 	b, err := Marshal(v)
 	if err != nil {
@@ -356,11 +358,11 @@ type BugZ struct {
 
 func TestDuplicatedFieldDisappears(t *testing.T) {
 	v := BugZ{
-		BugA{"BugA"},
-		BugC{"BugC"},
-		BugY{
-			BugA{"nested BugA"},
-			BugD{"nested BugD"},
+		BugA: BugA{S: "BugA"},
+		BugC: BugC{S: "BugC"},
+		BugY: BugY{
+			BugA: BugA{S: "nested BugA"},
+			BugD: BugD{XXX: "nested BugD"},
 		},
 	}
 	b, err := Marshal(v)
@@ -422,7 +424,7 @@ func TestIssue6458(t *testing.T) {
 	type Foo struct {
 		M RawMessage
 	}
-	x := Foo{RawMessage(`"foo"`)}
+	x := Foo{M: RawMessage(`"foo"`)}
 
 	b, err := Marshal(&x)
 	if err != nil {
@@ -446,7 +448,7 @@ func TestIssue10281(t *testing.T) {
 	type Foo struct {
 		N Number
 	}
-	x := Foo{Number(`invalid`)}
+	x := Foo{N: Number(`invalid`)}
 
 	b, err := Marshal(&x)
 	if err == nil {
@@ -494,38 +496,38 @@ var encodeStringTests = []struct {
 	in  string
 	out string
 }{
-	{"\x00", `"\u0000"`},
-	{"\x01", `"\u0001"`},
-	{"\x02", `"\u0002"`},
-	{"\x03", `"\u0003"`},
-	{"\x04", `"\u0004"`},
-	{"\x05", `"\u0005"`},
-	{"\x06", `"\u0006"`},
-	{"\x07", `"\u0007"`},
-	{"\x08", `"\u0008"`},
-	{"\x09", `"\t"`},
-	{"\x0a", `"\n"`},
-	{"\x0b", `"\u000b"`},
-	{"\x0c", `"\u000c"`},
-	{"\x0d", `"\r"`},
-	{"\x0e", `"\u000e"`},
-	{"\x0f", `"\u000f"`},
-	{"\x10", `"\u0010"`},
-	{"\x11", `"\u0011"`},
-	{"\x12", `"\u0012"`},
-	{"\x13", `"\u0013"`},
-	{"\x14", `"\u0014"`},
-	{"\x15", `"\u0015"`},
-	{"\x16", `"\u0016"`},
-	{"\x17", `"\u0017"`},
-	{"\x18", `"\u0018"`},
-	{"\x19", `"\u0019"`},
-	{"\x1a", `"\u001a"`},
-	{"\x1b", `"\u001b"`},
-	{"\x1c", `"\u001c"`},
-	{"\x1d", `"\u001d"`},
-	{"\x1e", `"\u001e"`},
-	{"\x1f", `"\u001f"`},
+	{in: "\x00", out: `"\u0000"`},
+	{in: "\x01", out: `"\u0001"`},
+	{in: "\x02", out: `"\u0002"`},
+	{in: "\x03", out: `"\u0003"`},
+	{in: "\x04", out: `"\u0004"`},
+	{in: "\x05", out: `"\u0005"`},
+	{in: "\x06", out: `"\u0006"`},
+	{in: "\x07", out: `"\u0007"`},
+	{in: "\x08", out: `"\u0008"`},
+	{in: "\x09", out: `"\t"`},
+	{in: "\x0a", out: `"\n"`},
+	{in: "\x0b", out: `"\u000b"`},
+	{in: "\x0c", out: `"\u000c"`},
+	{in: "\x0d", out: `"\r"`},
+	{in: "\x0e", out: `"\u000e"`},
+	{in: "\x0f", out: `"\u000f"`},
+	{in: "\x10", out: `"\u0010"`},
+	{in: "\x11", out: `"\u0011"`},
+	{in: "\x12", out: `"\u0012"`},
+	{in: "\x13", out: `"\u0013"`},
+	{in: "\x14", out: `"\u0014"`},
+	{in: "\x15", out: `"\u0015"`},
+	{in: "\x16", out: `"\u0016"`},
+	{in: "\x17", out: `"\u0017"`},
+	{in: "\x18", out: `"\u0018"`},
+	{in: "\x19", out: `"\u0019"`},
+	{in: "\x1a", out: `"\u001a"`},
+	{in: "\x1b", out: `"\u001b"`},
+	{in: "\x1c", out: `"\u001c"`},
+	{in: "\x1d", out: `"\u001d"`},
+	{in: "\x1e", out: `"\u001e"`},
+	{in: "\x1f", out: `"\u001f"`},
 }
 
 func TestEncodeString(t *testing.T) {
@@ -558,7 +560,7 @@ type textint int
 
 func (i textint) MarshalText() ([]byte, error) { return tenc(`TI:%d`, i) }
 
-func tenc(format string, a ...interface{}) ([]byte, error) {
+func tenc(format string, a ...any) ([]byte, error) {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, format, a...)
 	return buf.Bytes(), nil
@@ -567,21 +569,21 @@ func tenc(format string, a ...interface{}) ([]byte, error) {
 // Issue 13783
 func TestEncodeBytekind(t *testing.T) {
 	testdata := []struct {
-		data interface{}
+		data any
 		want string
 	}{
-		{byte(7), "7"},
-		{jsonbyte(7), `{"JB":7}`},
-		{textbyte(4), `"TB:4"`},
-		{jsonint(5), `{"JI":5}`},
-		{textint(1), `"TI:1"`},
-		{[]byte{0, 1}, `"AAE="`},
-		{[]jsonbyte{0, 1}, `[{"JB":0},{"JB":1}]`},
-		{[][]jsonbyte{{0, 1}, {3}}, `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
-		{[]textbyte{2, 3}, `["TB:2","TB:3"]`},
-		{[]jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
-		{[]textint{9, 3}, `["TI:9","TI:3"]`},
-		{[]int{9, 3}, `[9,3]`},
+		{data: byte(7), want: "7"},
+		{data: jsonbyte(7), want: `{"JB":7}`},
+		{data: textbyte(4), want: `"TB:4"`},
+		{data: jsonint(5), want: `{"JI":5}`},
+		{data: textint(1), want: `"TI:1"`},
+		{data: []byte{0, 1}, want: `"AAE="`},
+		{data: []jsonbyte{0, 1}, want: `[{"JB":0},{"JB":1}]`},
+		{data: [][]jsonbyte{{0, 1}, {3}}, want: `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
+		{data: []textbyte{2, 3}, want: `["TB:2","TB:3"]`},
+		{data: []jsonint{5, 4}, want: `[{"JI":5},{"JI":4}]`},
+		{data: []textint{9, 3}, want: `["TI:9","TI:3"]`},
+		{data: []int{9, 3}, want: `[9,3]`},
 	}
 	for _, d := range testdata {
 		js, err := Marshal(d.data)
@@ -598,10 +600,10 @@ func TestEncodeBytekind(t *testing.T) {
 
 func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
 	b, err := Marshal(map[unmarshalerText]int{
-		{"x", "y"}: 1,
-		{"y", "x"}: 2,
-		{"a", "z"}: 3,
-		{"z", "a"}: 4,
+		{A: "x", B: "y"}: 1,
+		{A: "y", B: "x"}: 2,
+		{A: "a", B: "z"}: 3,
+		{A: "z", B: "a"}: 4,
 	})
 	if err != nil {
 		t.Fatalf("Failed to Marshal text.Marshaler: %v", err)

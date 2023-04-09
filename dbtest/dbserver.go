@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"gopkg.in/mgo.v2"
 	"gopkg.in/tomb.v2"
+
+	"github.com/3JoB/mgo"
 )
 
 // DBServer controls a MongoDB server process to be used within test suites.
@@ -79,14 +80,14 @@ func (dbs *DBServer) monitor() error {
 	dbs.server.Process.Wait()
 	if dbs.tomb.Alive() {
 		// Present some debugging information.
-		fmt.Fprintf(os.Stderr, "---- mongod process died unexpectedly:\n")
+		fmt.Fprint(os.Stderr, "---- mongod process died unexpectedly:\n")
 		fmt.Fprintf(os.Stderr, "%s", dbs.output.Bytes())
-		fmt.Fprintf(os.Stderr, "---- mongod processes running right now:\n")
+		fmt.Fprint(os.Stderr, "---- mongod processes running right now:\n")
 		cmd := exec.Command("/bin/sh", "-c", "ps auxw | grep mongod")
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		cmd.Run()
-		fmt.Fprintf(os.Stderr, "----------------------------------------\n")
+		fmt.Fprint(os.Stderr, "----------------------------------------\n")
 
 		panic("mongod process died unexpectedly")
 	}

@@ -1,19 +1,20 @@
 package bson_test
 
 import (
-	"gopkg.in/mgo.v2/bson"
-
-	. "gopkg.in/check.v1"
-	"reflect"
 	"strings"
 	"time"
+
+	"github.com/goccy/go-reflect"
+	. "gopkg.in/check.v1"
+
+	"github.com/3JoB/mgo/bson"
 )
 
 type jsonTest struct {
-	a interface{} // value encoded into JSON (optional)
-	b string      // JSON expected as output of <a>, and used as input to <c>
-	c interface{} // Value expected from decoding <b>, defaults to <a>
-	e string      // error string, if decoding (b) should fail
+	a any    // value encoded into JSON (optional)
+	b string // JSON expected as output of <a>, and used as input to <c>
+	c any    // Value expected from decoding <b>, defaults to <a>
+	e string // error string, if decoding (b) should fail
 }
 
 var jsonTests = []jsonTest{
@@ -58,7 +59,7 @@ var jsonTests = []jsonTest{
 
 	// $regex
 	{
-		a: bson.RegEx{"pattern", "options"},
+		a: bson.RegEx{Pattern: "pattern", Options: "options"},
 		b: `{"$regex":"pattern","$options":"options"}`,
 	},
 
@@ -74,7 +75,7 @@ var jsonTests = []jsonTest{
 	// $ref (no special type)
 	{
 		b: `DBRef("name", "id")`,
-		c: map[string]interface{}{"$ref": "name", "$id": "id"},
+		c: map[string]any{"$ref": "name", "$id": "id"},
 	},
 
 	// $numberLong
@@ -128,13 +129,13 @@ var jsonTests = []jsonTest{
 		c: bson.Undefined,
 	}, {
 		b: `{"v": undefined}`,
-		c: struct{ V interface{} }{bson.Undefined},
+		c: struct{ V any }{V: bson.Undefined},
 	},
 
 	// Unquoted keys and trailing commas
 	{
 		b: `{$foo: ["bar",],}`,
-		c: map[string]interface{}{"$foo": []interface{}{"bar"}},
+		c: map[string]any{"$foo": []any{"bar"}},
 	},
 }
 
@@ -160,7 +161,7 @@ func (s *S) TestJSON(c *C) {
 			c.Assert(strings.TrimSuffix(string(data), "\n"), Equals, item.b)
 		}
 
-		var zero interface{}
+		var zero any
 		if item.c == nil {
 			zero = &struct{}{}
 		} else {

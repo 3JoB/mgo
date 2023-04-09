@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/3JoB/mgo/bson"
 )
 
 type replyFunc func(err error, reply *replyOp, docNum int, docData []byte)
@@ -68,10 +68,10 @@ const (
 
 type queryOp struct {
 	collection string
-	query      interface{}
+	query      any
 	skip       int32
 	limit      int32
-	selector   interface{}
+	selector   any
 	flags      queryOpFlags
 	replyFunc  replyFunc
 
@@ -82,18 +82,18 @@ type queryOp struct {
 }
 
 type queryWrapper struct {
-	Query          interface{} "$query"
-	OrderBy        interface{} "$orderby,omitempty"
-	Hint           interface{} "$hint,omitempty"
-	Explain        bool        "$explain,omitempty"
-	Snapshot       bool        "$snapshot,omitempty"
-	ReadPreference bson.D      "$readPreference,omitempty"
-	MaxScan        int         "$maxScan,omitempty"
-	MaxTimeMS      int         "$maxTimeMS,omitempty"
-	Comment        string      "$comment,omitempty"
+	Query          any    "$query"
+	OrderBy        any    "$orderby,omitempty"
+	Hint           any    "$hint,omitempty"
+	Explain        bool   "$explain,omitempty"
+	Snapshot       bool   "$snapshot,omitempty"
+	ReadPreference bson.D "$readPreference,omitempty"
+	MaxScan        int    "$maxScan,omitempty"
+	MaxTimeMS      int    "$maxTimeMS,omitempty"
+	Comment        string "$comment,omitempty"
 }
 
-func (op *queryOp) finalQuery(socket *mongoSocket) interface{} {
+func (op *queryOp) finalQuery(socket *mongoSocket) any {
 	if op.flags&flagSlaveOk != 0 && socket.ServerInfo().Mongos {
 		var modeName string
 		switch op.mode {
@@ -114,9 +114,9 @@ func (op *queryOp) finalQuery(socket *mongoSocket) interface{} {
 		}
 		op.hasOptions = true
 		op.options.ReadPreference = make(bson.D, 0, 2)
-		op.options.ReadPreference = append(op.options.ReadPreference, bson.DocElem{"mode", modeName})
+		op.options.ReadPreference = append(op.options.ReadPreference, bson.DocElem{Name: "mode", Value: modeName})
 		if len(op.serverTags) > 0 {
-			op.options.ReadPreference = append(op.options.ReadPreference, bson.DocElem{"tags", op.serverTags})
+			op.options.ReadPreference = append(op.options.ReadPreference, bson.DocElem{Name: "tags", Value: op.serverTags})
 		}
 	}
 	if op.hasOptions {
@@ -147,25 +147,25 @@ type replyOp struct {
 }
 
 type insertOp struct {
-	collection string        // "database.collection"
-	documents  []interface{} // One or more documents to insert
+	collection string // "database.collection"
+	documents  []any  // One or more documents to insert
 	flags      uint32
 }
 
 type updateOp struct {
-	Collection string      `bson:"-"` // "database.collection"
-	Selector   interface{} `bson:"q"`
-	Update     interface{} `bson:"u"`
-	Flags      uint32      `bson:"-"`
-	Multi      bool        `bson:"multi,omitempty"`
-	Upsert     bool        `bson:"upsert,omitempty"`
+	Collection string `bson:"-"` // "database.collection"
+	Selector   any    `bson:"q"`
+	Update     any    `bson:"u"`
+	Flags      uint32 `bson:"-"`
+	Multi      bool   `bson:"multi,omitempty"`
+	Upsert     bool   `bson:"upsert,omitempty"`
 }
 
 type deleteOp struct {
-	Collection string      `bson:"-"` // "database.collection"
-	Selector   interface{} `bson:"q"`
-	Flags      uint32      `bson:"-"`
-	Limit      int         `bson:"limit"`
+	Collection string `bson:"-"` // "database.collection"
+	Selector   any    `bson:"q"`
+	Flags      uint32 `bson:"-"`
+	Limit      int    `bson:"limit"`
 }
 
 type killCursorsOp struct {
@@ -372,8 +372,7 @@ func (socket *mongoSocket) SimpleQuery(op *queryOp) (data []byte, err error) {
 	return data, err
 }
 
-func (socket *mongoSocket) Query(ops ...interface{}) (err error) {
-
+func (socket *mongoSocket) Query(ops ...any) (err error) {
 	if lops := socket.flushLogout(); len(lops) > 0 {
 		ops = append(lops, ops...)
 	}
@@ -397,7 +396,6 @@ func (socket *mongoSocket) Query(ops ...interface{}) (err error) {
 		start := len(buf)
 		var replyFunc replyFunc
 		switch op := op.(type) {
-
 		case *updateOp:
 			buf = addHeader(buf, 2001)
 			buf = addInt32(buf, 0) // Reserved
@@ -670,7 +668,7 @@ func addCString(b []byte, s string) []byte {
 	return b
 }
 
-func addBSON(b []byte, doc interface{}) ([]byte, error) {
+func addBSON(b []byte, doc any) ([]byte, error) {
 	if doc == nil {
 		return append(b, 5, 0, 0, 0, 0), nil
 	}

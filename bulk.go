@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/3JoB/mgo/bson"
 )
 
 // Bulk represents an operation that can be prepared with several
@@ -19,8 +19,7 @@ import (
 //
 // Relevant documentation:
 //
-//   http://blog.mongodb.org/post/84922794768/mongodbs-new-bulk-api
-//
+//	http://blog.mongodb.org/post/84922794768/mongodbs-new-bulk-api
 type Bulk struct {
 	c       *Collection
 	opcount int
@@ -39,12 +38,13 @@ const (
 
 type bulkAction struct {
 	op   bulkOp
-	docs []interface{}
+	docs []any
 	idxs []int
 }
 
-type bulkUpdateOp []interface{}
-type bulkDeleteOp []interface{}
+type bulkUpdateOp []any
+
+type bulkDeleteOp []any
 
 // BulkResult holds the results for a bulk operation.
 type BulkResult struct {
@@ -94,9 +94,11 @@ func (e *BulkError) Error() string {
 
 type bulkErrorCases []BulkErrorCase
 
-func (slice bulkErrorCases) Len() int           { return len(slice) }
+func (slice bulkErrorCases) Len() int { return len(slice) }
+
 func (slice bulkErrorCases) Less(i, j int) bool { return slice[i].Index < slice[j].Index }
-func (slice bulkErrorCases) Swap(i, j int)      { slice[i], slice[j] = slice[j], slice[i] }
+
+func (slice bulkErrorCases) Swap(i, j int) { slice[i], slice[j] = slice[j], slice[i] }
 
 // BulkErrorCase holds an individual error found while attempting a single change
 // within a bulk operation, and the position in which it was enqueued.
@@ -156,14 +158,14 @@ func (b *Bulk) action(op bulkOp, opcount int) *bulkAction {
 }
 
 // Insert queues up the provided documents for insertion.
-func (b *Bulk) Insert(docs ...interface{}) {
+func (b *Bulk) Insert(docs ...any) {
 	action := b.action(bulkInsert, len(docs))
 	action.docs = append(action.docs, docs...)
 }
 
 // Remove queues up the provided selectors for removing matching documents.
 // Each selector will remove only a single matching document.
-func (b *Bulk) Remove(selectors ...interface{}) {
+func (b *Bulk) Remove(selectors ...any) {
 	action := b.action(bulkRemove, len(selectors))
 	for _, selector := range selectors {
 		if selector == nil {
@@ -180,7 +182,7 @@ func (b *Bulk) Remove(selectors ...interface{}) {
 
 // RemoveAll queues up the provided selectors for removing all matching documents.
 // Each selector will remove all matching documents.
-func (b *Bulk) RemoveAll(selectors ...interface{}) {
+func (b *Bulk) RemoveAll(selectors ...any) {
 	action := b.action(bulkRemove, len(selectors))
 	for _, selector := range selectors {
 		if selector == nil {
@@ -199,7 +201,7 @@ func (b *Bulk) RemoveAll(selectors ...interface{}) {
 // The first element of each pair selects which documents must be
 // updated, and the second element defines how to update it.
 // Each pair matches exactly one document for updating at most.
-func (b *Bulk) Update(pairs ...interface{}) {
+func (b *Bulk) Update(pairs ...any) {
 	if len(pairs)%2 != 0 {
 		panic("Bulk.Update requires an even number of parameters")
 	}
@@ -221,7 +223,7 @@ func (b *Bulk) Update(pairs ...interface{}) {
 // The first element of each pair selects which documents must be
 // updated, and the second element defines how to update it.
 // Each pair updates all documents matching the selector.
-func (b *Bulk) UpdateAll(pairs ...interface{}) {
+func (b *Bulk) UpdateAll(pairs ...any) {
 	if len(pairs)%2 != 0 {
 		panic("Bulk.UpdateAll requires an even number of parameters")
 	}
@@ -245,7 +247,7 @@ func (b *Bulk) UpdateAll(pairs ...interface{}) {
 // The first element of each pair selects which documents must be
 // updated, and the second element defines how to update it.
 // Each pair matches exactly one document for updating at most.
-func (b *Bulk) Upsert(pairs ...interface{}) {
+func (b *Bulk) Upsert(pairs ...any) {
 	if len(pairs)%2 != 0 {
 		panic("Bulk.Update requires an even number of parameters")
 	}
@@ -303,7 +305,7 @@ func (b *Bulk) Run() (*BulkResult, error) {
 }
 
 func (b *Bulk) runInsert(action *bulkAction, result *BulkResult, berr *BulkError) bool {
-	op := &insertOp{b.c.FullName, action.docs, 0}
+	op := &insertOp{collection: b.c.FullName, documents: action.docs, flags: 0}
 	if !b.ordered {
 		op.flags = 1 // ContinueOnError
 	}
@@ -338,12 +340,12 @@ func (b *Bulk) checkSuccess(action *bulkAction, berr *BulkError, lerr *LastError
 			if idx >= 0 {
 				idx = action.idxs[idx]
 			}
-			berr.ecases = append(berr.ecases, BulkErrorCase{idx, ecase.Err})
+			berr.ecases = append(berr.ecases, BulkErrorCase{Index: idx, Err: ecase.Err})
 		}
 		return false
 	} else if err != nil {
 		for i := 0; i < len(action.idxs); i++ {
-			berr.ecases = append(berr.ecases, BulkErrorCase{action.idxs[i], err})
+			berr.ecases = append(berr.ecases, BulkErrorCase{Index: action.idxs[i], Err: err})
 		}
 		return false
 	}

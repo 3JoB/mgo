@@ -28,13 +28,14 @@
 package bson
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
-	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/3JoB/go-json"
+	"github.com/3JoB/go-reflect"
 )
 
 // --------------------------------------------------------------------------
@@ -43,7 +44,7 @@ import (
 var (
 	typeBinary         = reflect.TypeOf(Binary{})
 	typeObjectId       = reflect.TypeOf(ObjectId(""))
-	typeDBPointer      = reflect.TypeOf(DBPointer{"", ObjectId("")})
+	typeDBPointer      = reflect.TypeOf(DBPointer{Namespace: "", Id: ObjectId("")})
 	typeSymbol         = reflect.TypeOf(Symbol(""))
 	typeMongoTimestamp = reflect.TypeOf(MongoTimestamp(0))
 	typeOrderKey       = reflect.TypeOf(MinKey)
@@ -245,7 +246,6 @@ func (e *encoder) addElemName(kind byte, name string) {
 }
 
 func (e *encoder) addElem(name string, v reflect.Value, minSize bool) {
-
 	if !v.IsValid() {
 		e.addElemName(0x0A, name)
 		return
@@ -261,7 +261,6 @@ func (e *encoder) addElem(name string, v reflect.Value, minSize bool) {
 	}
 
 	switch v.Kind() {
-
 	case reflect.Interface:
 		e.addElem(name, v.Elem(), minSize)
 
@@ -386,7 +385,6 @@ func (e *encoder) addElem(name string, v reflect.Value, minSize bool) {
 
 	case reflect.Struct:
 		switch s := v.Interface().(type) {
-
 		case Raw:
 			kind := s.Kind
 			if kind == 0x00 {

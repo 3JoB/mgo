@@ -97,7 +97,8 @@ type scanner struct {
 	err error
 
 	// 1-byte redo (see undo method)
-	redo      bool
+	redo bool
+
 	redoCode  int
 	redoState func(*scanner, byte) int
 
@@ -169,7 +170,7 @@ func (s *scanner) eof() int {
 		return scanEnd
 	}
 	if s.err == nil {
-		s.err = &SyntaxError{"unexpected end of JSON input", s.bytes}
+		s.err = &SyntaxError{msg: "unexpected end of JSON input", Offset: s.bytes}
 	}
 	return scanError
 }
@@ -235,7 +236,7 @@ func stateBeginValue(s *scanner, c byte) int {
 		s.step = stateNew0
 		return scanBeginName
 	}
-	if '1' <= c && c <= '9' { // beginning of 1234.5
+	if c >= '1' && c <= '9' { // beginning of 1234.5
 		s.step = state1
 		return scanBeginLiteral
 	}
@@ -247,7 +248,7 @@ func stateBeginValue(s *scanner, c byte) int {
 }
 
 func isName(c byte) bool {
-	return c == '$' || c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
+	return c == '$' || c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
 // stateBeginStringOrEmpty is the state after reading `{`.
@@ -379,7 +380,7 @@ func stateInStringEsc(s *scanner, c byte) int {
 
 // stateInStringEscU is the state after reading `"\u` during a quoted string.
 func stateInStringEscU(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+	if c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' {
 		s.step = stateInStringEscU1
 		return scanContinue
 	}
@@ -389,7 +390,7 @@ func stateInStringEscU(s *scanner, c byte) int {
 
 // stateInStringEscU1 is the state after reading `"\u1` during a quoted string.
 func stateInStringEscU1(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+	if c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' {
 		s.step = stateInStringEscU12
 		return scanContinue
 	}
@@ -399,7 +400,7 @@ func stateInStringEscU1(s *scanner, c byte) int {
 
 // stateInStringEscU12 is the state after reading `"\u12` during a quoted string.
 func stateInStringEscU12(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+	if c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' {
 		s.step = stateInStringEscU123
 		return scanContinue
 	}
@@ -409,7 +410,7 @@ func stateInStringEscU12(s *scanner, c byte) int {
 
 // stateInStringEscU123 is the state after reading `"\u123` during a quoted string.
 func stateInStringEscU123(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+	if c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' {
 		s.step = stateInString
 		return scanContinue
 	}
@@ -423,7 +424,7 @@ func stateNeg(s *scanner, c byte) int {
 		s.step = state0
 		return scanContinue
 	}
-	if '1' <= c && c <= '9' {
+	if c >= '1' && c <= '9' {
 		s.step = state1
 		return scanContinue
 	}
@@ -433,7 +434,7 @@ func stateNeg(s *scanner, c byte) int {
 // state1 is the state after reading a non-zero integer during a number,
 // such as after reading `1` or `100` but not `0`.
 func state1(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' {
+	if c >= '0' && c <= '9' {
 		s.step = state1
 		return scanContinue
 	}
@@ -456,7 +457,7 @@ func state0(s *scanner, c byte) int {
 // stateDot is the state after reading the integer and decimal point in a number,
 // such as after reading `1.`.
 func stateDot(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' {
+	if c >= '0' && c <= '9' {
 		s.step = stateDot0
 		return scanContinue
 	}
@@ -466,7 +467,7 @@ func stateDot(s *scanner, c byte) int {
 // stateDot0 is the state after reading the integer, decimal point, and subsequent
 // digits of a number, such as after reading `3.14`.
 func stateDot0(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' {
+	if c >= '0' && c <= '9' {
 		return scanContinue
 	}
 	if c == 'e' || c == 'E' {
@@ -489,7 +490,7 @@ func stateE(s *scanner, c byte) int {
 // stateESign is the state after reading the mantissa, e, and sign in a number,
 // such as after reading `314e-` or `0.314e+`.
 func stateESign(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' {
+	if c >= '0' && c <= '9' {
 		s.step = stateE0
 		return scanContinue
 	}
@@ -500,7 +501,7 @@ func stateESign(s *scanner, c byte) int {
 // and at least one digit of the exponent in a number,
 // such as after reading `314e-2` or `0.314e+1` or `3.14e0`.
 func stateE0(s *scanner, c byte) int {
-	if '0' <= c && c <= '9' {
+	if c >= '0' && c <= '9' {
 		return scanContinue
 	}
 	return stateEndValue(s, c)
@@ -658,7 +659,7 @@ func stateError(s *scanner, c byte) int {
 // error records an error and switches to the error state.
 func (s *scanner) error(c byte, context string) int {
 	s.step = stateError
-	s.err = &SyntaxError{"invalid character " + quoteChar(c) + " " + context, s.bytes}
+	s.err = &SyntaxError{msg: "invalid character " + quoteChar(c) + " " + context, Offset: s.bytes}
 	return scanError
 }
 

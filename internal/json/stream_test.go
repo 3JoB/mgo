@@ -7,7 +7,6 @@ package json
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -19,14 +18,14 @@ import (
 
 // Test values for the stream test.
 // One of each JSON kind.
-var streamTest = []interface{}{
+var streamTest = []any{
 	0.1,
 	"hello",
 	nil,
 	true,
 	false,
-	[]interface{}{"a", "b", "c"},
-	map[string]interface{}{"K": "Kelvin", "ß": "long s"},
+	[]any{"a", "b", "c"},
+	map[string]any{"K": "Kelvin", "ß": "long s"},
 	3.14, // another value to make sure something can follow map
 }
 
@@ -92,13 +91,13 @@ func TestEncoderDisableHTMLEscaping(t *testing.T) {
 	var ct CText
 	for _, tt := range []struct {
 		name       string
-		v          interface{}
+		v          any
 		wantEscape string
 		want       string
 	}{
-		{"c", c, `"\u003c\u0026\u003e"`, `"<&>"`},
-		{"ct", ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
-		{`"<&>"`, "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
+		{name: "c", v: c, wantEscape: `"\u003c\u0026\u003e"`, want: `"<&>"`},
+		{name: "ct", v: ct, wantEscape: `"\"\u003c\u0026\u003e\""`, want: `"\"<&>\""`},
+		{name: `"<&>"`, v: "<&>", wantEscape: `"\u003c\u0026\u003e"`, want: `"<&>"`},
 	} {
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)
@@ -130,11 +129,11 @@ func TestDecoder(t *testing.T) {
 		var buf bytes.Buffer
 		for _, c := range nlines(streamEncoded, i) {
 			// That's stupid isn't it!? nulltrue!?!? :/
-			//if c != '\n' {
-				buf.WriteRune(c)
-			//}
+			// if c != '\n' {
+			buf.WriteRune(c)
+			// }
 		}
-		out := make([]interface{}, i)
+		out := make([]any, i)
 		dec := NewDecoder(&buf)
 		for j := range out {
 			if err := dec.Decode(&out[j]); err != nil {
@@ -166,7 +165,7 @@ func TestDecoderBuffered(t *testing.T) {
 	if m.Name != "Gopher" {
 		t.Errorf("Name = %q; want Gopher", m.Name)
 	}
-	rest, err := ioutil.ReadAll(d.Buffered())
+	rest, err := io.ReadAll(d.Buffered())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +247,7 @@ func TestBlocking(t *testing.T) {
 	for _, enc := range blockingTests {
 		r, w := net.Pipe()
 		go w.Write([]byte(enc))
-		var val interface{}
+		var val any
 
 		// If Decode reads beyond what w.Write writes above,
 		// it will block, and the test will deadlock.
@@ -265,9 +264,9 @@ func BenchmarkEncoderEncode(b *testing.B) {
 	type T struct {
 		X, Y string
 	}
-	v := &T{"foo", "bar"}
+	v := &T{X: "foo", Y: "bar"}
 	for i := 0; i < b.N; i++ {
-		if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
+		if err := NewEncoder(io.Discard).Encode(v); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -275,85 +274,83 @@ func BenchmarkEncoderEncode(b *testing.B) {
 
 type tokenStreamCase struct {
 	json      string
-	expTokens []interface{}
+	expTokens []any
 }
 
 type decodeThis struct {
-	v interface{}
+	v any
 }
 
 var tokenStreamCases []tokenStreamCase = []tokenStreamCase{
 	// streaming token cases
-	{json: `10`, expTokens: []interface{}{float64(10)}},
-	{json: ` [10] `, expTokens: []interface{}{
+	{json: `10`, expTokens: []any{float64(10)}},
+	{json: ` [10] `, expTokens: []any{
 		Delim('['), float64(10), Delim(']')}},
-	{json: ` [false,10,"b"] `, expTokens: []interface{}{
+	{json: ` [false,10,"b"] `, expTokens: []any{
 		Delim('['), false, float64(10), "b", Delim(']')}},
-	{json: `{ "a": 1 }`, expTokens: []interface{}{
+	{json: `{ "a": 1 }`, expTokens: []any{
 		Delim('{'), "a", float64(1), Delim('}')}},
-	{json: `{"a": 1, "b":"3"}`, expTokens: []interface{}{
+	{json: `{"a": 1, "b":"3"}`, expTokens: []any{
 		Delim('{'), "a", float64(1), "b", "3", Delim('}')}},
-	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []interface{}{
+	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
 		Delim('['),
 		Delim('{'), "a", float64(1), Delim('}'),
 		Delim('{'), "a", float64(2), Delim('}'),
 		Delim(']')}},
-	{json: `{"obj": {"a": 1}}`, expTokens: []interface{}{
+	{json: `{"obj": {"a": 1}}`, expTokens: []any{
 		Delim('{'), "obj", Delim('{'), "a", float64(1), Delim('}'),
-		Delim('}')}},
-	{json: `{"obj": [{"a": 1}]}`, expTokens: []interface{}{
+		Delim('}'),
+	}},
+	{json: `{"obj": [{"a": 1}]}`, expTokens: []any{
 		Delim('{'), "obj", Delim('['),
 		Delim('{'), "a", float64(1), Delim('}'),
 		Delim(']'), Delim('}')}},
 
 	// streaming tokens with intermittent Decode()
-	{json: `{ "a": 1 }`, expTokens: []interface{}{
+	{json: `{ "a": 1 }`, expTokens: []any{
 		Delim('{'), "a",
-		decodeThis{float64(1)},
+		decodeThis{v: float64(1)},
 		Delim('}')}},
-	{json: ` [ { "a" : 1 } ] `, expTokens: []interface{}{
+	{json: ` [ { "a" : 1 } ] `, expTokens: []any{
 		Delim('['),
-		decodeThis{map[string]interface{}{"a": float64(1)}},
+		decodeThis{v: map[string]any{"a": float64(1)}},
 		Delim(']')}},
-	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []interface{}{
+	{json: ` [{"a": 1},{"a": 2}] `, expTokens: []any{
 		Delim('['),
-		decodeThis{map[string]interface{}{"a": float64(1)}},
-		decodeThis{map[string]interface{}{"a": float64(2)}},
+		decodeThis{v: map[string]any{"a": float64(1)}},
+		decodeThis{v: map[string]any{"a": float64(2)}},
 		Delim(']')}},
-	{json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []interface{}{
+	{json: `{ "obj" : [ { "a" : 1 } ] }`, expTokens: []any{
 		Delim('{'), "obj", Delim('['),
-		decodeThis{map[string]interface{}{"a": float64(1)}},
+		decodeThis{v: map[string]any{"a": float64(1)}},
 		Delim(']'), Delim('}')}},
 
-	{json: `{"obj": {"a": 1}}`, expTokens: []interface{}{
+	{json: `{"obj": {"a": 1}}`, expTokens: []any{
 		Delim('{'), "obj",
-		decodeThis{map[string]interface{}{"a": float64(1)}},
+		decodeThis{v: map[string]any{"a": float64(1)}},
 		Delim('}')}},
-	{json: `{"obj": [{"a": 1}]}`, expTokens: []interface{}{
+	{json: `{"obj": [{"a": 1}]}`, expTokens: []any{
 		Delim('{'), "obj",
-		decodeThis{[]interface{}{
-			map[string]interface{}{"a": float64(1)},
+		decodeThis{v: []any{
+			map[string]any{"a": float64(1)},
 		}},
 		Delim('}')}},
-	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []interface{}{
+	{json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
 		Delim('['),
-		decodeThis{map[string]interface{}{"a": float64(1)}},
-		decodeThis{&SyntaxError{"expected comma after array element", 0}},
+		decodeThis{v: map[string]any{"a": float64(1)}},
+		decodeThis{v: &SyntaxError{msg: "expected comma after array element", Offset: 0}},
 	}},
-	{json: `{ "a" 1 }`, expTokens: []interface{}{
+	{json: `{ "a" 1 }`, expTokens: []any{
 		Delim('{'), "a",
-		decodeThis{&SyntaxError{"expected colon after object key", 0}},
+		decodeThis{v: &SyntaxError{msg: "expected colon after object key", Offset: 0}},
 	}},
 }
 
 func TestDecodeInStream(t *testing.T) {
-
 	for ci, tcase := range tokenStreamCases {
-
 		dec := NewDecoder(strings.NewReader(tcase.json))
 		for i, etk := range tcase.expTokens {
-
-			var tk interface{}
+			var tk any
 			var err error
 
 			if dt, ok := etk.(decodeThis); ok {
@@ -380,7 +377,6 @@ func TestDecodeInStream(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 // Test from golang.org/issue/11893

@@ -16,27 +16,27 @@ var foldTests = []struct {
 	s, t string
 	want bool
 }{
-	{equalFoldRight, "", "", true},
-	{equalFoldRight, "a", "a", true},
-	{equalFoldRight, "", "a", false},
-	{equalFoldRight, "a", "", false},
-	{equalFoldRight, "a", "A", true},
-	{equalFoldRight, "AB", "ab", true},
-	{equalFoldRight, "AB", "ac", false},
-	{equalFoldRight, "sbkKc", "ſbKKc", true},
-	{equalFoldRight, "SbKkc", "ſbKKc", true},
-	{equalFoldRight, "SbKkc", "ſbKK", false},
-	{equalFoldRight, "e", "é", false},
-	{equalFoldRight, "s", "S", true},
+	{fn: equalFoldRight, s: "", t: "", want: true},
+	{fn: equalFoldRight, s: "a", t: "a", want: true},
+	{fn: equalFoldRight, s: "", t: "a", want: false},
+	{fn: equalFoldRight, s: "a", t: "", want: false},
+	{fn: equalFoldRight, s: "a", t: "A", want: true},
+	{fn: equalFoldRight, s: "AB", t: "ab", want: true},
+	{fn: equalFoldRight, s: "AB", t: "ac", want: false},
+	{fn: equalFoldRight, s: "sbkKc", t: "ſbKKc", want: true},
+	{fn: equalFoldRight, s: "SbKkc", t: "ſbKKc", want: true},
+	{fn: equalFoldRight, s: "SbKkc", t: "ſbKK", want: false},
+	{fn: equalFoldRight, s: "e", t: "é", want: false},
+	{fn: equalFoldRight, s: "s", t: "S", want: true},
 
-	{simpleLetterEqualFold, "", "", true},
-	{simpleLetterEqualFold, "abc", "abc", true},
-	{simpleLetterEqualFold, "abc", "ABC", true},
-	{simpleLetterEqualFold, "abc", "ABCD", false},
-	{simpleLetterEqualFold, "abc", "xxx", false},
+	{fn: simpleLetterEqualFold, s: "", t: "", want: true},
+	{fn: simpleLetterEqualFold, s: "abc", t: "abc", want: true},
+	{fn: simpleLetterEqualFold, s: "abc", t: "ABC", want: true},
+	{fn: simpleLetterEqualFold, s: "abc", t: "ABCD", want: false},
+	{fn: simpleLetterEqualFold, s: "abc", t: "xxx", want: false},
 
-	{asciiEqualFold, "a_B", "A_b", true},
-	{asciiEqualFold, "aa@", "aa`", false}, // verify 0x40 and 0x60 aren't case-equivalent
+	{fn: asciiEqualFold, s: "a_B", t: "A_b", want: true},
+	{fn: asciiEqualFold, s: "aa@", t: "aa`", want: false}, // verify 0x40 and 0x60 aren't case-equivalent
 }
 
 func TestFold(t *testing.T) {
@@ -112,5 +112,5 @@ func TestFoldAgainstUnicode(t *testing.T) {
 }
 
 func isASCIILetter(b byte) bool {
-	return ('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z')
+	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
 }

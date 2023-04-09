@@ -35,7 +35,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/3JoB/mgo/bson"
 )
 
 // ---------------------------------------------------------------------------
@@ -526,7 +526,7 @@ func (cluster *mongoCluster) syncServersIteration(direct bool) {
 			if add {
 				syncKind = completeSync
 			} else {
-				notYetAdded[resolvedAddr] = pendingAdd{server, info}
+				notYetAdded[resolvedAddr] = pendingAdd{server: server, info: info}
 			}
 			m.Unlock()
 			if add {
